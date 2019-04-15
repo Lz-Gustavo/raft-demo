@@ -31,7 +31,7 @@ func New() (*Info, error) {
 
 	info := &Info{}
 
-	_, err := toml.DecodeFile("../config.toml", info)
+	_, err := toml.DecodeFile("../client-config.toml", info)
 	if err != nil {
 		return nil, err
 	}

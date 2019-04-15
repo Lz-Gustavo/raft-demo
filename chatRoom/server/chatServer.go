@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,9 +25,8 @@ type Server struct {
 	joins    chan net.Conn
 	incoming chan string
 
-	logger      *log.Logger // Log of events for monitoring purposes
-	raft        *raft.Raft  // Instance of the raft consensus protocol
-	clusterJoin chan string
+	logger *log.Logger // Log of events for monitoring purposes
+	raft   *raft.Raft  // Instance of the raft consensus protocol
 }
 
 // NewServer ...
@@ -36,8 +36,7 @@ func NewServer() *Server {
 		joins:    make(chan net.Conn),
 		incoming: make(chan string),
 
-		logger:      log.New(os.Stderr, "[chatServer] ", log.LstdFlags),
-		clusterJoin: make(chan string),
+		logger: log.New(os.Stderr, "[chatServer] ", log.LstdFlags),
 	}
 
 	svr.Listen()
@@ -104,7 +103,13 @@ func (svr *Server) ListenRaftJoins() {
 			request, _ := bufio.NewReader(conn).ReadString('\n')
 
 			data := strings.Split(request, "-")
-			err = svr.JoinRaft(data[0], data[1])
+			if len(data) < 3 {
+				log.Fatalf("incorrect join request, data: %s", data)
+			}
+
+			data[2] = strings.TrimSuffix(data[2], "\n")
+			voter, _ := strconv.ParseBool(data[2])
+			err = svr.JoinRaft(data[0], data[1], voter)
 			if err != nil {
 				log.Fatalf("failed to join node at %s: %s", data[1], err.Error())
 			}
@@ -163,9 +168,8 @@ func (svr *Server) StartRaft(enableSingle bool, localID string) error {
 }
 
 // JoinRaft joins a node, identified by nodeID and located at addr
-func (svr *Server) JoinRaft(nodeID, addr string) error {
+func (svr *Server) JoinRaft(nodeID, addr string, voter bool) error {
 
-	addr = strings.TrimSuffix(addr, "\n")
 	svr.logger.Printf("received join request for remote node %s at %s", nodeID, addr)
 	configFuture := svr.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
@@ -193,9 +197,16 @@ func (svr *Server) JoinRaft(nodeID, addr string) error {
 		}
 	}
 
-	f := svr.raft.AddVoter(raft.ServerID(nodeID), raft.ServerAddress(addr), 0, 0)
-	if f.Error() != nil {
-		return f.Error()
+	if voter {
+		f := svr.raft.AddVoter(raft.ServerID(nodeID), raft.ServerAddress(addr), 0, 0)
+		if f.Error() != nil {
+			return f.Error()
+		}
+	} else {
+		f := svr.raft.AddNonvoter(raft.ServerID(nodeID), raft.ServerAddress(addr), 0, 0)
+		if f.Error() != nil {
+			return f.Error()
+		}
 	}
 
 	svr.logger.Printf("node %s at %s joined successfully", nodeID, addr)
@@ -244,10 +255,11 @@ func main() {
 			log.Fatalf("failed to connect to leader node at %s: %s", joinAddr, err.Error())
 		}
 
-		_, err = fmt.Fprint(joinConn, svrID+"-"+raftAddr+"\n")
+		_, err = fmt.Fprint(joinConn, svrID+"-"+raftAddr+"-"+"true"+"\n")
 		if err != nil {
 			log.Fatalf("failed to send join request to node at %s: %s", joinAddr, err.Error())
 		}
+		joinConn.Close()
 	}
 
 	go func() {
@@ -255,7 +267,6 @@ func main() {
 			conn, err := listener.Accept()
 			if err != nil {
 				log.Fatalf("accept failed: %s", err.Error())
-				continue
 			}
 
 			chatRoom.logger.Println("New client connected!")
