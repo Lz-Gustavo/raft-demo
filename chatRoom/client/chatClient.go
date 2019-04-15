@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 
 	"github.com/BurntSushi/toml"
 )
@@ -19,6 +20,9 @@ type Info struct {
 
 	Svrs []net.Conn
 	Logs []net.Conn
+
+	reader   []*bufio.Reader
+	incoming chan string
 }
 
 // New instatiates a new client config struct from toml file
@@ -30,6 +34,8 @@ func New() (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	info.incoming = make(chan string)
 	return info, nil
 }
 
@@ -37,6 +43,7 @@ func New() (*Info, error) {
 func (client *Info) Connect() error {
 
 	client.Svrs = make([]net.Conn, client.Rep)
+	client.reader = make([]*bufio.Reader, client.Rep)
 	client.Logs = make([]net.Conn, client.LogRep)
 	var err error
 
@@ -45,6 +52,9 @@ func (client *Info) Connect() error {
 		if err != nil {
 			return err
 		}
+
+		client.reader[i] = bufio.NewReader(client.Svrs[i])
+		go client.Read(i)
 	}
 
 	for i, v := range client.LogIps {
@@ -53,6 +63,9 @@ func (client *Info) Connect() error {
 			return err
 		}
 	}
+
+	go client.Consume()
+
 	return nil
 }
 
@@ -66,6 +79,28 @@ func (client *Info) Broadcast(message string) error {
 		}
 	}
 	return nil
+}
+
+// Read consumes any data from reader socket and stores it into the
+// incoming channel
+func (client *Info) Read(readerID int) {
+	for {
+		line, err := client.reader[readerID].ReadString('\n')
+		if (err == nil) && (len(line) > 1) {
+			client.incoming <- strconv.Itoa(readerID) + "-" + line
+		}
+	}
+}
+
+// Consume reads any data from incoming channel and outputs it
+func (client *Info) Consume() {
+	for {
+		v, ok := <-client.incoming
+		if !ok {
+			break
+		}
+		fmt.Println("Received message:", v)
+	}
 }
 
 func main() {
@@ -100,5 +135,4 @@ func main() {
 			continue
 		}
 	}
-
 }
