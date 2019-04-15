@@ -1,63 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
-	"strings"
+
+	"github.com/hashicorp/raft"
 )
-
-// Session struct which represents each ...
-type Session struct {
-	incoming chan string
-	outgoing chan string
-	reader   *bufio.Reader
-	writer   *bufio.Writer
-}
-
-func (client *Session) Read() {
-	for {
-		line, err := client.reader.ReadString('\n')
-		if (err == nil) && (len(line) > 1) {
-			fmt.Println("Received message: ", line)
-		}
-		client.incoming <- line
-	}
-}
-
-func (client *Session) Write() {
-	for data := range client.outgoing {
-		client.writer.WriteString(data)
-		client.writer.Flush()
-	}
-}
-
-// Listen ...
-func (client *Session) Listen() {
-	go client.Read()
-	go client.Write()
-}
-
-// NewSession instantiates a new client
-func NewSession(connection net.Conn) *Session {
-	writer := bufio.NewWriter(connection)
-	reader := bufio.NewReader(connection)
-
-	client := &Session{
-		incoming: make(chan string),
-		outgoing: make(chan string),
-		reader:   reader,
-		writer:   writer,
-	}
-
-	client.Listen()
-
-	return client
-}
 
 // Server stores the state between every client
 type Server struct {
@@ -65,21 +17,15 @@ type Server struct {
 	joins    chan net.Conn
 	incoming chan string
 	outgoing chan string
+
+	logger *log.Logger // The log of events for monitoring
+	raft   *raft.Raft  // The consensus mechanism
 }
 
 // Broadcast sends a message to every other client on the room
 func (svr *Server) Broadcast(data string) {
 	for _, client := range svr.clients {
 		client.outgoing <- data
-	}
-}
-
-// HandleRequest ...
-func (svr *Server) HandleRequest(data string) {
-	if strings.Contains(data, "get") {
-		// ...
-	} else if strings.Contains(data, "join") {
-		// ...
 	}
 }
 
@@ -115,6 +61,7 @@ func NewServer() *Server {
 		joins:    make(chan net.Conn),
 		incoming: make(chan string),
 		outgoing: make(chan string),
+		logger:   log.New(os.Stderr, "[chatServer] ", log.LstdFlags),
 	}
 
 	svr.Listen()
@@ -132,7 +79,6 @@ func init() {
 func main() {
 
 	flag.Parse()
-
 	fmt.Println("Server Port:", svrPort)
 	fmt.Println("Join addr:", joinAddr)
 
@@ -155,7 +101,8 @@ func main() {
 				log.Fatalf("accept failed: %s", err.Error())
 				continue
 			}
-			fmt.Println("New client connected!")
+
+			chatRoom.logger.Println("New client connected!")
 			chatRoom.joins <- conn
 		}
 	}()
