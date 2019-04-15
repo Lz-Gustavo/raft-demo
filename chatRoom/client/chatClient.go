@@ -83,7 +83,6 @@ func (client *Info) Disconnect() {
 
 // Broadcast a message to the cluster
 func (client *Info) Broadcast(message string) error {
-
 	for _, v := range client.Svrs {
 		_, err := fmt.Fprint(v, message)
 		if err != nil {
