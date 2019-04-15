@@ -13,18 +13,19 @@ import (
 	"github.com/hashicorp/raft"
 )
 
-// Logger ...
+// Logger struct represents the Logger process state. Member of the Raft cluster as a
+// non-Voter participant and thus, just recording proposed commands to the FSM
 type Logger struct {
 	log   *log.Logger
 	raft  *raft.Raft
 	recov *recovlog.Log
 }
 
-// NewLogger ....
+// NewLogger constructs a new Logger struct and its dependencies
 func NewLogger() *Logger {
 	log := &Logger{
 		log:   log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
-		recov: recovlog.New("log-file" + logID + ".txt"),
+		recov: recovlog.New("log-file-" + logID + ".txt"),
 	}
 
 	return log

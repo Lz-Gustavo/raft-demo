@@ -16,12 +16,8 @@ import (
 type Info struct {
 	Rep    int
 	SvrIps []string
-	LogRep int
-	LogIps []string
 
-	Svrs []net.Conn
-	Logs []net.Conn
-
+	Svrs     []net.Conn
 	reader   []*bufio.Reader
 	incoming chan string
 }
@@ -45,7 +41,6 @@ func (client *Info) Connect() error {
 
 	client.Svrs = make([]net.Conn, client.Rep)
 	client.reader = make([]*bufio.Reader, client.Rep)
-	client.Logs = make([]net.Conn, client.LogRep)
 	var err error
 
 	for i, v := range client.SvrIps {
@@ -58,25 +53,14 @@ func (client *Info) Connect() error {
 		go client.Read(i)
 	}
 
-	for i, v := range client.LogIps {
-		client.Logs[i], err = net.Dial("tcp", v)
-		if err != nil {
-			return err
-		}
-	}
-
 	go client.Consume()
 	return nil
 }
 
-// Disconnect closes every open socket connection with the fsm
-// cluster
+// Disconnect closes every open socket connection with the fsm cluster
 func (client *Info) Disconnect() {
 
 	for _, v := range client.Svrs {
-		v.Close()
-	}
-	for _, v := range client.Logs {
 		v.Close()
 	}
 }
@@ -92,8 +76,8 @@ func (client *Info) Broadcast(message string) error {
 	return nil
 }
 
-// Read consumes any data from reader socket and stores it into the
-// incoming channel
+// Read consumes any data from reader socket and stores it into the incoming
+// channel
 func (client *Info) Read(readerID int) {
 	for {
 		line, err := client.reader[readerID].ReadString('\n')
@@ -114,8 +98,8 @@ func (client *Info) Consume() {
 	}
 }
 
-// Shutdown realeases every resource and finishes goroutines launched
-// by the client programm
+// Shutdown realeases every resource and finishes goroutines launched by the
+// client programm
 func (client *Info) Shutdown() {
 
 	client.Disconnect()
@@ -131,8 +115,6 @@ func main() {
 
 	fmt.Println("rep:", cluster.Rep)
 	fmt.Println("svrIps:", cluster.SvrIps)
-	fmt.Println("logRep:", cluster.LogRep)
-	fmt.Println("logIps:", cluster.LogIps)
 
 	err = cluster.Connect()
 	if err != nil {

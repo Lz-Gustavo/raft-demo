@@ -29,7 +29,7 @@ type Server struct {
 	raft   *raft.Raft  // Instance of the raft consensus protocol
 }
 
-// NewServer ...
+// NewServer constructs and starts a new Server
 func NewServer() *Server {
 	svr := &Server{
 		clients:  make([]*Session, 0),
@@ -58,7 +58,7 @@ func (svr *Server) Broadcast(data string) {
 	}
 }
 
-// Join threats a join requisition
+// Join threats a join requisition from clients to the Server state
 func (svr *Server) Join(connection net.Conn) {
 	client := NewSession(connection)
 	svr.clients = append(svr.clients, client)
@@ -69,7 +69,7 @@ func (svr *Server) Join(connection net.Conn) {
 	}()
 }
 
-// Listen ...
+// Listen receives incoming messagens and new connections from clients
 func (svr *Server) Listen() {
 	go func() {
 		for {
@@ -84,7 +84,9 @@ func (svr *Server) Listen() {
 	}()
 }
 
-// ListenRaftJoins ...
+// ListenRaftJoins receives incoming join requests to the raft cluster. Its initialized
+// when "-hjoin" flag is specified, and it can be set only in the first node in case you
+// have a static/imutable cluster architecture
 func (svr *Server) ListenRaftJoins() {
 
 	go func() {
@@ -167,7 +169,7 @@ func (svr *Server) StartRaft(enableSingle bool, localID string) error {
 	return nil
 }
 
-// JoinRaft joins a node, identified by nodeID and located at addr
+// JoinRaft joins a raft node, identified by nodeID and located at addr
 func (svr *Server) JoinRaft(nodeID, addr string, voter bool) error {
 
 	svr.logger.Printf("received join request for remote node %s at %s", nodeID, addr)
@@ -277,8 +279,4 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
-}
-
-func join(joinAddr string) error {
-	return nil
 }
