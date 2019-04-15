@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -65,8 +66,19 @@ func (client *Info) Connect() error {
 	}
 
 	go client.Consume()
-
 	return nil
+}
+
+// Disconnect closes every open socket connection with the fsm
+// cluster
+func (client *Info) Disconnect() {
+
+	for _, v := range client.Svrs {
+		v.Close()
+	}
+	for _, v := range client.Logs {
+		v.Close()
+	}
 }
 
 // Broadcast a message to the cluster
@@ -103,6 +115,14 @@ func (client *Info) Consume() {
 	}
 }
 
+// Shutdown realeases every resource and finishes goroutines launched
+// by the client programm
+func (client *Info) Shutdown() {
+
+	client.Disconnect()
+	close(client.incoming)
+}
+
 func main() {
 
 	cluster, err := New()
@@ -127,6 +147,10 @@ func main() {
 		if err != nil {
 			log.Printf("input reader failed: %s", err.Error())
 			continue
+		}
+		if strings.Contains(text, "exit") {
+			cluster.Shutdown()
+			break
 		}
 
 		err = cluster.Broadcast(text + "\n")
