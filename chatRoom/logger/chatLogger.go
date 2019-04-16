@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"journey/recovlog"
+	"journey"
 	"log"
 	"net"
 	"os"
@@ -18,14 +18,14 @@ import (
 type Logger struct {
 	log   *log.Logger
 	raft  *raft.Raft
-	recov *recovlog.Log
+	recov *journey.Log
 }
 
 // NewLogger constructs a new Logger struct and its dependencies
 func NewLogger() *Logger {
 	log := &Logger{
 		log:   log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
-		recov: recovlog.New("log-file-" + logID + ".txt"),
+		recov: journey.New("log-file-" + logID + ".txt"),
 	}
 
 	return log

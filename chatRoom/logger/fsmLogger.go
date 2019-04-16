@@ -2,7 +2,7 @@ package main
 
 import (
 	"io"
-	"journey/recovlog"
+	"journey"
 	"strings"
 	"time"
 
@@ -18,7 +18,7 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 
 	message := string(l.Data)
 	message = strings.TrimSuffix(message, "\n")
-	s.recov.Put(0, recovlog.Write, message, time.Now().Format(time.Stamp))
+	s.recov.Put(0, journey.Write, message, time.Now().Format(time.Stamp))
 	return nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -58,7 +59,7 @@ func New(inmem bool) *Store {
 		m:      make(map[string]string),
 		inmem:  inmem,
 		logger: log.New(os.Stderr, "[store] ", log.LstdFlags),
-		recov:  journey.New("log-file.txt"),
+		recov:  journey.New("log-file" + strconv.Itoa(os.Getpid()) + ".txt"),
 	}
 }
 
