@@ -83,6 +83,10 @@ func init() {
 func main() {
 
 	flag.Parse()
+	if logID == "" {
+		log.Fatalln("must set a logger ID, run with: ./logger -id 'logID'")
+	}
+
 	fmt.Println("Logger ID:", logID)
 	fmt.Println("Raft Port:", raftAddr)
 	fmt.Println("Join addr:", joinAddr)

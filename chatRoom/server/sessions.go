@@ -14,6 +14,22 @@ type Session struct {
 	writer   *bufio.Writer
 }
 
+// NewSession instantiates a new client
+func NewSession(connection net.Conn) *Session {
+	writer := bufio.NewWriter(connection)
+	reader := bufio.NewReader(connection)
+
+	client := &Session{
+		incoming: make(chan string),
+		outgoing: make(chan string),
+		reader:   reader,
+		writer:   writer,
+	}
+
+	client.Listen()
+	return client
+}
+
 func (client *Session) Read() {
 	for {
 		line, err := client.reader.ReadString('\n')
@@ -37,18 +53,9 @@ func (client *Session) Listen() {
 	go client.Write()
 }
 
-// NewSession instantiates a new client
-func NewSession(connection net.Conn) *Session {
-	writer := bufio.NewWriter(connection)
-	reader := bufio.NewReader(connection)
+// Disconnect ...
+func (client *Session) Disconnect() {
 
-	client := &Session{
-		incoming: make(chan string),
-		outgoing: make(chan string),
-		reader:   reader,
-		writer:   writer,
-	}
-
-	client.Listen()
-	return client
+	close(client.incoming)
+	close(client.outgoing)
 }

@@ -12,6 +12,12 @@ type fsm Server
 
 // Apply proposes a new value to the consensus cluster
 func (s *fsm) Apply(l *raft.Log) interface{} {
+
+	// Broadcast a message to every other client on the room
+	for _, client := range s.clients {
+		client.outgoing <- string(l.Data)
+	}
+
 	return nil
 }
 

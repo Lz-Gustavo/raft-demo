@@ -41,21 +41,18 @@ func NewServer() *Server {
 
 	svr.Listen()
 	if joinHandlerAddr != "" {
-		svr.ListenRaftJoins()
+		svr.ListenRaftJoins(joinHandlerAddr)
 	}
 	return svr
 }
 
-// Broadcast sends a message to every other client on the room
-func (svr *Server) Broadcast(data string) {
-	for _, client := range svr.clients {
-		client.outgoing <- data
-	}
+// NewServerListenRJ is used on test files to specify a diff hjoin address on test
+// calls, since "joinHandlerAddr" is a global var only assigned by cmd flags
+func NewServerListenRJ(addr string) *Server {
 
-	// Propose the value to the consensus mechanism
-	if svr.raft.State() == raft.Leader {
-		svr.raft.Apply([]byte(data), raftTimeout)
-	}
+	svr := NewServer()
+	svr.ListenRaftJoins(addr)
+	return svr
 }
 
 // Join threats a join requisition from clients to the Server state
@@ -75,7 +72,10 @@ func (svr *Server) Listen() {
 		for {
 			select {
 			case data := <-svr.incoming:
-				svr.Broadcast(data)
+				// Propose the value to the consensus mechanism
+				if svr.raft.State() == raft.Leader {
+					svr.raft.Apply([]byte(data), raftTimeout)
+				}
 
 			case conn := <-svr.joins:
 				svr.Join(conn)
@@ -87,13 +87,13 @@ func (svr *Server) Listen() {
 // ListenRaftJoins receives incoming join requests to the raft cluster. Its initialized
 // when "-hjoin" flag is specified, and it can be set only in the first node in case you
 // have a static/imutable cluster architecture
-func (svr *Server) ListenRaftJoins() {
+func (svr *Server) ListenRaftJoins(addr string) {
 
 	go func() {
 
-		listener, err := net.Listen("tcp", joinHandlerAddr)
+		listener, err := net.Listen("tcp", addr)
 		if err != nil {
-			log.Fatalf("failed to bind connection at %s: %s", joinHandlerAddr, err.Error())
+			log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
 		}
 
 		for {
@@ -215,6 +215,16 @@ func (svr *Server) JoinRaft(nodeID, addr string, voter bool) error {
 	return nil
 }
 
+// Shutdown realeases every resource and finishes goroutines launched by the server
+func (svr *Server) Shutdown() {
+
+	for _, v := range svr.clients {
+		v.Disconnect()
+	}
+	close(svr.joins)
+	close(svr.incoming)
+}
+
 var svrID string
 var svrPort string
 var joinAddr string
@@ -232,6 +242,10 @@ func init() {
 func main() {
 
 	flag.Parse()
+	if svrID == "" {
+		log.Fatalln("must set a server ID, run with: ./server -id 'svrID'")
+	}
+
 	fmt.Println("Server ID:", svrID)
 	fmt.Println("Server Port:", svrPort)
 	fmt.Println("Raft Port:", raftAddr)
@@ -279,4 +293,6 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
+
+	chatRoom.Shutdown()
 }
