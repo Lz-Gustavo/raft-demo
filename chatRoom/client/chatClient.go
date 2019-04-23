@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -20,6 +19,9 @@ type Info struct {
 	Svrs     []net.Conn
 	reader   []*bufio.Reader
 	incoming chan string
+
+	MqueueSize int
+	mq         *MessageQueue
 }
 
 // New instatiates a new client config struct from toml file
@@ -33,6 +35,7 @@ func New() (*Info, error) {
 	}
 
 	info.incoming = make(chan string)
+	info.mq = NewMQ(info.MqueueSize, false)
 	return info, nil
 }
 
@@ -82,7 +85,7 @@ func (client *Info) Read(readerID int) {
 	for {
 		line, err := client.reader[readerID].ReadString('\n')
 		if (err == nil) && (len(line) > 1) {
-			client.incoming <- strconv.Itoa(readerID) + "-" + line
+			client.incoming <- line
 		}
 	}
 }
@@ -93,6 +96,11 @@ func (client *Info) Consume() {
 		v, ok := <-client.incoming
 		if !ok {
 			break
+		}
+		_, err := client.mq.PushPop(v)
+		if err != nil {
+			// Discard equal received messages
+			continue
 		}
 		fmt.Println("Received message:", v)
 	}
@@ -115,6 +123,7 @@ func main() {
 
 	fmt.Println("rep:", cluster.Rep)
 	fmt.Println("svrIps:", cluster.SvrIps)
+	fmt.Println("mqueueSize:", cluster.MqueueSize)
 
 	err = cluster.Connect()
 	if err != nil {

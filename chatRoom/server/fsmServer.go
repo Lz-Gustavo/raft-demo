@@ -2,6 +2,8 @@ package main
 
 import (
 	"io"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/raft"
 )
@@ -13,9 +15,12 @@ type fsm Server
 // Apply proposes a new value to the consensus cluster
 func (s *fsm) Apply(l *raft.Log) interface{} {
 
+	// Using a string slice to concatenate strings in O(n) complexity
+	auxBuffer := []string{strconv.FormatUint(l.Index, 10), string(l.Data)}
+
 	// Broadcast a message to every other client on the room
 	for _, client := range s.clients {
-		client.outgoing <- string(l.Data)
+		client.outgoing <- strings.Join(auxBuffer, "-")
 	}
 
 	return nil
