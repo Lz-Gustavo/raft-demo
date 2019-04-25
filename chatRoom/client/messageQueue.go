@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// MessageQueue ....
+// MessageQueue is filled with incoming messages from hosts, ignoring repeated entries
 type MessageQueue struct {
 	Size int
 	Data []string
@@ -14,7 +14,7 @@ type MessageQueue struct {
 	mutex sync.Mutex
 }
 
-// NewMQ ...
+// NewMQ initializes a new message queue with defined size and sync configuration
 func NewMQ(size int, synchronized bool) *MessageQueue {
 	return &MessageQueue{
 		Size: size,
@@ -56,8 +56,8 @@ func (mq *MessageQueue) Consume() string {
 	return first
 }
 
-// PushPop threats the mq as a circular exclusive queue, pushing a element to it
-// (in canse it doesnt exists) and removing the first one
+// PushPop threats the mq as a restricted size exclusive queue, pushing a element
+// to it (in canse it doesnt exists) and removing the first one
 func (mq *MessageQueue) PushPop(data string) (string, error) {
 
 	if mq.Sync {

@@ -11,9 +11,6 @@ import (
 
 func TestServerStart(t *testing.T) {
 
-	// TODO:
-	// implement a future to release these goroutines before executing it
-
 	// Initialize RaftNode0
 	go func() {
 
@@ -26,7 +23,7 @@ func TestServerStart(t *testing.T) {
 			log.Fatalf("failed to start connection: %s", err.Error())
 		}
 
-		if err := chatRoom.StartRaft(true, svrID); err != nil {
+		if err := chatRoom.StartRaft(true, svrID, ":12000"); err != nil {
 			log.Fatalf("failed to start raft cluster: %s", err.Error())
 		}
 
@@ -44,8 +41,8 @@ func TestServerStart(t *testing.T) {
 
 		svrID := "node1"
 		svrPort := ":11001"
-		raftAddr := "12001"
-		joinAddr := "13000"
+		raftAddr := ":12001"
+		joinAddr := ":13000"
 
 		chatRoom := NewServer()
 		listener, err := net.Listen("tcp", svrPort)
@@ -53,7 +50,7 @@ func TestServerStart(t *testing.T) {
 			log.Fatalf("failed to start connection: %s", err.Error())
 		}
 
-		if err := chatRoom.StartRaft(false, svrID); err != nil {
+		if err := chatRoom.StartRaft(false, svrID, raftAddr); err != nil {
 			log.Fatalf("failed to start raft cluster: %s", err.Error())
 		}
 
@@ -83,8 +80,8 @@ func TestServerStart(t *testing.T) {
 
 		svrID := "node2"
 		svrPort := ":11002"
-		raftAddr := "12002"
-		joinAddr := "13000"
+		raftAddr := ":12002"
+		joinAddr := ":13000"
 
 		chatRoom := NewServer()
 		listener, err := net.Listen("tcp", svrPort)
@@ -92,7 +89,7 @@ func TestServerStart(t *testing.T) {
 			log.Fatalf("failed to start connection: %s", err.Error())
 		}
 
-		if err := chatRoom.StartRaft(false, svrID); err != nil {
+		if err := chatRoom.StartRaft(false, svrID, raftAddr); err != nil {
 			log.Fatalf("failed to start raft cluster: %s", err.Error())
 		}
 

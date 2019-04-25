@@ -71,7 +71,10 @@ func (svr *Server) Listen() {
 	go func() {
 		for {
 			select {
-			case data := <-svr.incoming:
+			case data, ok := <-svr.incoming:
+				if !ok {
+					return
+				}
 				// Propose the value to the consensus mechanism
 				if svr.raft.State() == raft.Leader {
 					svr.raft.Apply([]byte(data), raftTimeout)
@@ -120,18 +123,18 @@ func (svr *Server) ListenRaftJoins(addr string) {
 }
 
 // StartRaft initializes the node to be part of the raft cluster
-func (svr *Server) StartRaft(enableSingle bool, localID string) error {
+func (svr *Server) StartRaft(enableSingle bool, localID string, localRaftAddr string) error {
 
 	// Setup Raft configuration.
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(localID)
 
 	// Setup Raft communication.
-	addr, err := net.ResolveTCPAddr("tcp", raftAddr)
+	addr, err := net.ResolveTCPAddr("tcp", localRaftAddr)
 	if err != nil {
 		return err
 	}
-	transport, err := raft.NewTCPTransport(raftAddr, addr, 3, 10*time.Second, os.Stderr)
+	transport, err := raft.NewTCPTransport(localRaftAddr, addr, 3, 10*time.Second, os.Stderr)
 	if err != nil {
 		return err
 	}
@@ -260,7 +263,7 @@ func main() {
 	}
 
 	// Start the Raft cluster
-	if err := chatRoom.StartRaft(joinAddr == "", svrID); err != nil {
+	if err := chatRoom.StartRaft(joinAddr == "", svrID, raftAddr); err != nil {
 		log.Fatalf("failed to start raft cluster: %s", err.Error())
 	}
 

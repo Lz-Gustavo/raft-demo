@@ -21,7 +21,7 @@ type Info struct {
 	incoming chan string
 
 	MqueueSize int
-	mq         *MessageQueue
+	Mq         *MessageQueue
 }
 
 // New instatiates a new client config struct from toml file
@@ -35,7 +35,7 @@ func New() (*Info, error) {
 	}
 
 	info.incoming = make(chan string)
-	info.mq = NewMQ(info.MqueueSize, false)
+	info.Mq = NewMQ(info.MqueueSize, false)
 	return info, nil
 }
 
@@ -95,9 +95,9 @@ func (client *Info) Consume() {
 	for {
 		v, ok := <-client.incoming
 		if !ok {
-			break
+			return
 		}
-		_, err := client.mq.PushPop(v)
+		_, err := client.Mq.PushPop(v)
 		if err != nil {
 			// Discard equal received messages
 			continue
