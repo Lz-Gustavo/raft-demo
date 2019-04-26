@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 )
 
@@ -34,7 +33,7 @@ func (client *Session) Read() {
 	for {
 		line, err := client.reader.ReadString('\n')
 		if (err == nil) && (len(line) > 1) {
-			fmt.Println("Received message: ", line)
+			//fmt.Println("Received message: ", line)
 			client.incoming <- line
 		}
 	}

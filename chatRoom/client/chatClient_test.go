@@ -87,10 +87,10 @@ func TestTotalOrder(t *testing.T) {
 	finishedBarrier.Wait()
 }
 
-func BenchmarkRequisitions(b *testing.B) {
+func TestRequisitions(b *testing.T) {
 
-	numClients := 10
-	numMessages := 1000
+	numClients := 4
+	numMessages := 10000
 
 	// Create some fake data
 	rand.Seed(time.Now().UnixNano())

@@ -13,6 +13,16 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+// Custom configuration over default for testing
+func configRaft() *raft.Config {
+
+	config := raft.DefaultConfig()
+	config.SnapshotInterval = 5 * time.Minute
+	config.SnapshotThreshold = 1000024
+
+	return config
+}
+
 // Logger struct represents the Logger process state. Member of the Raft cluster as a
 // non-Voter participant and thus, just recording proposed commands to the FSM
 type Logger struct {
@@ -36,7 +46,7 @@ func NewLogger() *Logger {
 func (lgr *Logger) StartRaft(localID string) error {
 
 	// Setup Raft configuration.
-	config := raft.DefaultConfig()
+	config := configRaft()
 	config.LocalID = raft.ServerID(localID)
 
 	// Setup Raft communication.

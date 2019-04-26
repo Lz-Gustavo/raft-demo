@@ -19,6 +19,16 @@ const (
 	raftTimeout = 10 * time.Second
 )
 
+// Custom configuration over default for testing
+func configRaft() *raft.Config {
+
+	config := raft.DefaultConfig()
+	config.SnapshotInterval = 5 * time.Minute
+	config.SnapshotThreshold = 1000024
+
+	return config
+}
+
 // Server stores the state between every client
 type Server struct {
 	clients  []*Session
@@ -126,7 +136,7 @@ func (svr *Server) ListenRaftJoins(addr string) {
 func (svr *Server) StartRaft(enableSingle bool, localID string, localRaftAddr string) error {
 
 	// Setup Raft configuration.
-	config := raft.DefaultConfig()
+	config := configRaft()
 	config.LocalID = raft.ServerID(localID)
 
 	// Setup Raft communication.
