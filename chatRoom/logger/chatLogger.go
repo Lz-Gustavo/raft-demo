@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/hashicorp/raft"
+	"github.com/Lz-Gustavo/raft"
 )
 
 // Custom configuration over default for testing
@@ -19,6 +19,7 @@ func configRaft() *raft.Config {
 	config := raft.DefaultConfig()
 	config.SnapshotInterval = 5 * time.Minute
 	config.SnapshotThreshold = 1000024
+	config.LogLevel = "WARN"
 
 	return config
 }

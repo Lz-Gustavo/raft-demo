@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/raft"
+	"github.com/Lz-Gustavo/raft"
 )
 
 const (
@@ -25,6 +25,7 @@ func configRaft() *raft.Config {
 	config := raft.DefaultConfig()
 	config.SnapshotInterval = 5 * time.Minute
 	config.SnapshotThreshold = 1000024
+	config.LogLevel = "ERROR"
 
 	return config
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/raft"
+	"github.com/Lz-Gustavo/raft"
 )
 
 // Must implement the Raft FSM interface, even if the chatRoom application
