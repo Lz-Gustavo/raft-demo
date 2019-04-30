@@ -1,4 +1,4 @@
-package store
+package main
 
 import (
 	"io/ioutil"
@@ -19,7 +19,7 @@ func Test_StoreOpen(t *testing.T) {
 		t.Fatalf("failed to create store")
 	}
 
-	if err := s.Open(false, "node0"); err != nil {
+	if err := s.StartRaft(false, "node0", s.RaftBind); err != nil {
 		t.Fatalf("failed to open store: %s", err)
 	}
 }
@@ -36,7 +36,7 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 		t.Fatalf("failed to create store")
 	}
 
-	if err := s.Open(true, "node0"); err != nil {
+	if err := s.StartRaft(true, "node0", s.RaftBind); err != nil {
 		t.Fatalf("failed to open store: %s", err)
 	}
 
@@ -85,7 +85,7 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 		t.Fatalf("failed to create store")
 	}
 
-	if err := s.Open(true, "node0"); err != nil {
+	if err := s.StartRaft(true, "node0", s.RaftBind); err != nil {
 		t.Fatalf("failed to open store: %s", err)
 	}
 

@@ -1,34 +1,33 @@
-// Package store provides a simple distributed key-value store. The keys and
-// associated values are changed via distributed consensus, meaning that the
-// values are changed only when a majority of nodes in the cluster agree on
-// the new value.
-//
-// Distributed consensus is provided via the Raft algorithm, specifically the
-// Hashicorp implementation.
-//
-// Source Code: github.com/otoolep/hraftd
-package store
+package main
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"journey"
 	"log"
 	"net"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/hashicorp/raft"
-	"github.com/hashicorp/raft-boltdb"
+	"github.com/Lz-Gustavo/raft"
 )
 
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
 )
+
+// Custom configuration over default for testing
+func configRaft() *raft.Config {
+
+	config := raft.DefaultConfig()
+	config.SnapshotInterval = 5 * time.Minute
+	config.SnapshotThreshold = 1000024
+	config.LogLevel = "ERROR"
+
+	return config
+}
 
 type command struct {
 	Op    string `json:"op,omitempty"`
@@ -43,13 +42,11 @@ type Store struct {
 	inmem    bool
 
 	mu sync.Mutex
-	m  map[string]string // The key-value store for the system.
+	m  map[string]string
 
-	raft *raft.Raft // The consensus mechanism
-
-	logger *log.Logger // The log of events for monitoring
-
-	recov *journey.Log // The optimized recovery log for raft
+	raft   *raft.Raft
+	logger *log.Logger
+	recov  *journey.Log
 }
 
 // New returns a new Store.
@@ -63,51 +60,39 @@ func New(inmem bool) *Store {
 }
 
 // Exit closes the raft context and releases any resources allocated
-//
-// TODO: verify correctness of raft.Shutdown() call, if compromises the
-// protocol communication after a failure.
 func (s *Store) Exit() {
 	s.recov.Close()
 	s.raft.Shutdown()
 }
 
-// Open opens the store. If enableSingle is set, and there are no existing peers,
+// StartRaft opens the store. If enableSingle is set, and there are no existing peers,
 // then this node becomes the first node, and therefore leader, of the cluster.
 // localID should be the server identifier for this node.
-func (s *Store) Open(enableSingle bool, localID string) error {
+func (s *Store) StartRaft(enableSingle bool, localID string, localRaftAddr string) error {
+
 	// Setup Raft configuration.
-	config := raft.DefaultConfig()
+	config := configRaft()
 	config.LocalID = raft.ServerID(localID)
 
 	// Setup Raft communication.
-	addr, err := net.ResolveTCPAddr("tcp", s.RaftBind)
+	addr, err := net.ResolveTCPAddr("tcp", localRaftAddr)
 	if err != nil {
 		return err
 	}
-	transport, err := raft.NewTCPTransport(s.RaftBind, addr, 3, 10*time.Second, os.Stderr)
+	transport, err := raft.NewTCPTransport(localRaftAddr, addr, 3, 10*time.Second, os.Stderr)
 	if err != nil {
 		return err
 	}
 
-	// Create the snapshot store. This allows the Raft to truncate the log.
-	snapshots, err := raft.NewFileSnapshotStore(s.RaftDir, retainSnapshotCount, os.Stderr)
+	// Using just in-memory storage (could use boltDB in the key-value application)
+	logStore := raft.NewInmemStore()
+	stableStore := raft.NewInmemStore()
+
+	// Create a fake snapshot store
+	dir := "checkpoints/" + svrID
+	snapshots, err := raft.NewFileSnapshotStore(dir, 2, os.Stderr)
 	if err != nil {
 		return fmt.Errorf("file snapshot store: %s", err)
-	}
-
-	// Create the log store and stable store.
-	var logStore raft.LogStore
-	var stableStore raft.StableStore
-	if s.inmem {
-		logStore = raft.NewInmemStore()
-		stableStore = raft.NewInmemStore()
-	} else {
-		boltDB, err := raftboltdb.NewBoltStore(filepath.Join(s.RaftDir, "raft.db"))
-		if err != nil {
-			return fmt.Errorf("new bolt store: %s", err)
-		}
-		logStore = boltDB
-		stableStore = boltDB
 	}
 
 	// Instantiate the Raft systems.
@@ -228,92 +213,3 @@ func (s *Store) Join(nodeID, addr string) error {
 	s.logger.Printf("node %s at %s joined successfully", nodeID, addr)
 	return nil
 }
-
-type fsm Store
-
-// Apply applies a Raft log entry to the key-value store.
-func (f *fsm) Apply(l *raft.Log) interface{} {
-	var c command
-	if err := json.Unmarshal(l.Data, &c); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
-	}
-
-	switch c.Op {
-	case "set":
-		return f.applySet(c.Key, c.Value)
-	case "delete":
-		return f.applyDelete(c.Key)
-	default:
-		panic(fmt.Sprintf("unrecognized command op: %s", c.Op))
-	}
-}
-
-// Snapshot returns a snapshot of the key-value store.
-func (f *fsm) Snapshot() (raft.FSMSnapshot, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	// Clone the map.
-	o := make(map[string]string)
-	for k, v := range f.m {
-		o[k] = v
-	}
-	return &fsmSnapshot{store: o}, nil
-}
-
-// Restore stores the key-value store to a previous state.
-func (f *fsm) Restore(rc io.ReadCloser) error {
-	o := make(map[string]string)
-	if err := json.NewDecoder(rc).Decode(&o); err != nil {
-		return err
-	}
-
-	// Set the state from the snapshot, no lock required according to
-	// Hashicorp docs.
-	f.m = o
-	return nil
-}
-
-func (f *fsm) applySet(key, value string) interface{} {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.m[key] = value
-	return nil
-}
-
-func (f *fsm) applyDelete(key string) interface{} {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	delete(f.m, key)
-	return nil
-}
-
-type fsmSnapshot struct {
-	store map[string]string
-}
-
-func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
-	err := func() error {
-		// Encode data.
-		b, err := json.Marshal(f.store)
-		if err != nil {
-			return err
-		}
-
-		// Write data to sink.
-		if _, err := sink.Write(b); err != nil {
-			return err
-		}
-
-		// Close the sink.
-		return sink.Close()
-	}()
-
-	if err != nil {
-		sink.Cancel()
-	}
-
-	return err
-}
-
-func (f *fsmSnapshot) Release() {}
