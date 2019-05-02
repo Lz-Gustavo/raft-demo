@@ -13,10 +13,6 @@ type fsm Store
 
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
-	//var c command
-	//if err := json.Unmarshal(l.Data, &c); err != nil {
-	//	panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
-	//}
 
 	message := string(l.Data)
 	req := strings.Split(message, "-")

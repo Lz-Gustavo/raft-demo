@@ -45,14 +45,22 @@ func (svr *Server) Broadcast(data string) {
 	}
 }
 
-// HandleRequest ...
+// HandleRequest handles the client requistion, checking if it matches the right syntax
+// before proposing it to the FSM
 func (svr *Server) HandleRequest(data string) {
 
-	if strings.HasPrefix(strings.ToLower(data), "get") {
-		// Respond get value
+	lowerCase := strings.ToLower(data)
+	if validateReq(lowerCase) {
 
-	} else if err := svr.kvstore.Propose(data); err != nil {
-		// Loggar o error
+		if strings.HasPrefix(lowerCase, "get") {
+			// TODO: Respond get value
+
+		}
+		if err := svr.kvstore.Propose(data); err != nil {
+			svr.kvstore.logger.Printf("Failed to propose message: %q, error: %s\n", data, err.Error())
+		}
+	} else {
+		svr.kvstore.logger.Printf("Operation: %q not recognized\n", data)
 	}
 }
 
@@ -72,11 +80,20 @@ func (svr *Server) Listen() {
 	go func() {
 		for {
 			select {
-			case data := <-svr.incoming:
+			case data, ok := <-svr.incoming:
+				if !ok {
+					return
+				}
 				svr.HandleRequest(data)
+
 			case conn := <-svr.joins:
 				svr.Join(conn)
 			}
 		}
 	}()
+}
+
+// TODO:
+func validateReq(requisition string) bool {
+	return true
 }

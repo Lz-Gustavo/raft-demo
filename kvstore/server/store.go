@@ -30,12 +30,6 @@ func configRaft() *raft.Config {
 	return config
 }
 
-type command struct {
-	Op    string `json:"op,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Value string `json:"value,omitempty"`
-}
-
 // Store is a simple key-value store, where all changes are made via Raft consensus.
 type Store struct {
 	RaftDir  string
@@ -68,7 +62,7 @@ func New(inmem bool) *Store {
 func (s *Store) Propose(msg string) error {
 
 	if s.raft.State() != raft.Leader {
-		return fmt.Errorf("not leader")
+		return nil
 	}
 
 	f := s.raft.Apply([]byte(msg), raftTimeout)
