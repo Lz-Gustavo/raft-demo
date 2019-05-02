@@ -43,7 +43,7 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 	// Simple way to ensure there is a leader.
 	time.Sleep(3 * time.Second)
 
-	if err := s.Set("foo", "bar"); err != nil {
+	if err := s.Propose("set-foo-bar"); err != nil {
 		t.Fatalf("failed to set key: %s", err.Error())
 	}
 
@@ -57,7 +57,7 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 		t.Fatalf("key has wrong value: %s", value)
 	}
 
-	if err := s.Delete("foo"); err != nil {
+	if err := s.Propose("delete-foo"); err != nil {
 		t.Fatalf("failed to delete key: %s", err.Error())
 	}
 
@@ -92,7 +92,7 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 	// Simple way to ensure there is a leader.
 	time.Sleep(3 * time.Second)
 
-	if err := s.Set("foo", "bar"); err != nil {
+	if err := s.Propose("set-foo-bar"); err != nil {
 		t.Fatalf("failed to set key: %s", err.Error())
 	}
 
@@ -106,7 +106,7 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 		t.Fatalf("key has wrong value: %s", value)
 	}
 
-	if err := s.Delete("foo"); err != nil {
+	if err := s.Propose("delete-foo-bar"); err != nil {
 		t.Fatalf("failed to delete key: %s", err.Error())
 	}
 

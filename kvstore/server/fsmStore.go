@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Lz-Gustavo/raft"
 )
@@ -12,18 +13,21 @@ type fsm Store
 
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
-	var c command
-	if err := json.Unmarshal(l.Data, &c); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
-	}
+	//var c command
+	//if err := json.Unmarshal(l.Data, &c); err != nil {
+	//	panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
+	//}
 
-	switch c.Op {
+	message := string(l.Data)
+	req := strings.Split(message, "-")
+
+	switch req[0] {
 	case "set":
-		return f.applySet(c.Key, c.Value)
+		return f.applySet(req[1], req[2])
 	case "delete":
-		return f.applyDelete(c.Key)
+		return f.applyDelete(req[1])
 	default:
-		panic(fmt.Sprintf("unrecognized command op: %s", c.Op))
+		panic(fmt.Sprintf("unrecognized command op: %s", req[0]))
 	}
 }
 

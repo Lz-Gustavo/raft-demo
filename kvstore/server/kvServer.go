@@ -31,8 +31,6 @@ func NewServer(s *Store) *Server {
 func (svr *Server) Exit() {
 
 	svr.kvstore.raft.Shutdown()
-	svr.kvstore.recov.Close()
-
 	for _, v := range svr.clients {
 		v.Disconnect()
 	}
@@ -49,12 +47,12 @@ func (svr *Server) Broadcast(data string) {
 
 // HandleRequest ...
 func (svr *Server) HandleRequest(data string) {
-	if strings.Contains(data, "get") {
 
-	} else if strings.Contains(data, "set") {
+	if strings.HasPrefix(strings.ToLower(data), "get") {
+		// Respond get value
 
-	} else {
-		// Log
+	} else if err := svr.kvstore.Propose(data); err != nil {
+		// Loggar o error
 	}
 }
 

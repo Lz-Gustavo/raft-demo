@@ -2,9 +2,7 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	"journey"
 	"log"
 	"net"
 	"os"
@@ -49,7 +47,6 @@ type Store struct {
 
 	raft   *raft.Raft
 	logger *log.Logger
-	recov  *journey.Log
 }
 
 // New returns a new Store.
@@ -59,7 +56,6 @@ func New(inmem bool) *Store {
 		m:      make(map[string]string),
 		inmem:  inmem,
 		logger: log.New(os.Stderr, "[store] ", log.LstdFlags),
-		recov:  journey.New("log-file.txt"),
 	}
 
 	if joinHandlerAddr != "" {
@@ -68,64 +64,22 @@ func New(inmem bool) *Store {
 	return s
 }
 
+// Propose ....
+func (s *Store) Propose(msg string) error {
+
+	if s.raft.State() != raft.Leader {
+		return fmt.Errorf("not leader")
+	}
+
+	f := s.raft.Apply([]byte(msg), raftTimeout)
+	return f.Error()
+}
+
 // Get returns the value for the given key.
 func (s *Store) Get(key string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	str := fmt.Sprintf("Get key: %s", key)
-	s.recov.Put(0, journey.Read, str, time.Now().Format(time.Stamp))
-
 	return s.m[key], nil
-}
-
-// Set sets the value for the given key.
-func (s *Store) Set(key, value string) error {
-	if s.raft.State() != raft.Leader {
-		return fmt.Errorf("not leader")
-	}
-
-	c := &command{
-		Op:    "set",
-		Key:   key,
-		Value: value,
-	}
-	b, err := json.Marshal(c)
-	if err != nil {
-		return err
-	}
-
-	f := s.raft.Apply(b, raftTimeout)
-	if f.Error() == nil {
-		str := fmt.Sprintf("Set key: %s, value: %s", key, value)
-		s.recov.Put(0, journey.Write, str, time.Now().Format(time.Stamp))
-	}
-
-	return f.Error()
-}
-
-// Delete deletes the given key.
-func (s *Store) Delete(key string) error {
-	if s.raft.State() != raft.Leader {
-		return fmt.Errorf("not leader")
-	}
-
-	c := &command{
-		Op:  "delete",
-		Key: key,
-	}
-	b, err := json.Marshal(c)
-	if err != nil {
-		return err
-	}
-
-	f := s.raft.Apply(b, raftTimeout)
-	if f.Error() == nil {
-		str := fmt.Sprintf("Delete key: %s", key)
-		s.recov.Put(0, journey.Write, str, time.Now().Format(time.Stamp))
-	}
-
-	return f.Error()
 }
 
 // StartRaft opens the store. If enableSingle is set, and there are no existing peers,
