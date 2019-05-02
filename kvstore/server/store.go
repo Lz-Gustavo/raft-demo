@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Lz-Gustavo/raft"
+	"github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -25,7 +26,7 @@ func configRaft() *raft.Config {
 	config := raft.DefaultConfig()
 	config.SnapshotInterval = 5 * time.Minute
 	config.SnapshotThreshold = 1000024
-	config.LogLevel = "WARN"
+	config.LogLevel = "ERROR"
 
 	return config
 }
@@ -40,16 +41,20 @@ type Store struct {
 	m  map[string]string
 
 	raft   *raft.Raft
-	logger *log.Logger
+	logger hclog.Logger
 }
 
 // New returns a new Store.
 func New(inmem bool) *Store {
 
 	s := &Store{
-		m:      make(map[string]string),
-		inmem:  inmem,
-		logger: log.New(os.Stderr, "[store] ", log.LstdFlags),
+		m:     make(map[string]string),
+		inmem: inmem,
+		logger: hclog.New(&hclog.LoggerOptions{
+			Name:   "store",
+			Level:  hclog.LevelFromString("INFO"),
+			Output: os.Stderr,
+		}),
 	}
 
 	if joinHandlerAddr != "" {
@@ -70,10 +75,10 @@ func (s *Store) Propose(msg string) error {
 }
 
 // Get returns the value for the given key.
-func (s *Store) Get(key string) (string, error) {
+func (s *Store) Get(key string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.m[key], nil
+	return s.m[key]
 }
 
 // StartRaft opens the store. If enableSingle is set, and there are no existing peers,
@@ -124,17 +129,16 @@ func (s *Store) StartRaft(enableSingle bool, localID string, localRaftAddr strin
 		}
 		ra.BootstrapCluster(configuration)
 	}
-
 	return nil
 }
 
 // JoinRaft joins a raft node, identified by nodeID and located at addr
 func (s *Store) JoinRaft(nodeID, addr string, voter bool) error {
 
-	s.logger.Printf("received join request for remote node %s at %s", nodeID, addr)
+	s.logger.Debug(fmt.Sprintf("received join request for remote node %s at %s", nodeID, addr))
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		s.logger.Printf("failed to get raft configuration: %v", err)
+		s.logger.Error(fmt.Sprintf("failed to get raft configuration: %v", err))
 		return err
 	}
 
@@ -147,7 +151,7 @@ func (s *Store) JoinRaft(nodeID, addr string, voter bool) error {
 			// However if *both* the ID and the address are the same, then nothing -- not even
 			// a join operation -- is needed.
 			if rep.Address == raft.ServerAddress(addr) && rep.ID == raft.ServerID(nodeID) {
-				s.logger.Printf("node %s at %s already member of cluster, ignoring join request", nodeID, addr)
+				s.logger.Debug(fmt.Sprintf("node %s at %s already member of cluster, ignoring join request", nodeID, addr))
 				return nil
 			}
 
@@ -170,7 +174,7 @@ func (s *Store) JoinRaft(nodeID, addr string, voter bool) error {
 		}
 	}
 
-	s.logger.Printf("node %s at %s joined successfully", nodeID, addr)
+	s.logger.Debug(fmt.Sprintf("node %s at %s joined successfully", nodeID, addr))
 	return nil
 }
 

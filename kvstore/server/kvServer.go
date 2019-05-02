@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"strings"
+	"sync/atomic"
+	"time"
 )
 
 // Server stores the state between every client
@@ -11,6 +14,7 @@ type Server struct {
 	joins    chan net.Conn
 	incoming chan string
 
+	req     uint64
 	kvstore *Store
 }
 
@@ -20,10 +24,12 @@ func NewServer(s *Store) *Server {
 		clients:  make([]*Session, 0),
 		joins:    make(chan net.Conn),
 		incoming: make(chan string),
+		req:      0,
 		kvstore:  s,
 	}
 
 	svr.Listen()
+	svr.monitor()
 	return svr
 }
 
@@ -53,14 +59,19 @@ func (svr *Server) HandleRequest(data string) {
 	if validateReq(lowerCase) {
 
 		if strings.HasPrefix(lowerCase, "get") {
-			// TODO: Respond get value
+			lowerCase = strings.TrimSuffix(lowerCase, "\n")
+			content := strings.Split(lowerCase, "-")
 
+			// TODO: Respond get value correctly (not broadcast)
+			value := svr.kvstore.Get(content[1])
+			svr.Broadcast(value)
+
+		} else if err := svr.kvstore.Propose(data); err != nil {
+			svr.kvstore.logger.Error(fmt.Sprintf("Failed to propose message: %q, error: %s\n", data, err.Error()))
 		}
-		if err := svr.kvstore.Propose(data); err != nil {
-			svr.kvstore.logger.Printf("Failed to propose message: %q, error: %s\n", data, err.Error())
-		}
+		atomic.AddUint64(&svr.req, 1)
 	} else {
-		svr.kvstore.logger.Printf("Operation: %q not recognized\n", data)
+		svr.kvstore.logger.Warn(fmt.Sprintf("Operation: %q not recognized\n", data))
 	}
 }
 
@@ -93,7 +104,25 @@ func (svr *Server) Listen() {
 	}()
 }
 
-// TODO:
+func (svr *Server) monitor() {
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
+			cont := atomic.SwapUint64(&svr.req, 0)
+			svr.kvstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
+		}
+	}()
+}
+
 func validateReq(requisition string) bool {
-	return true
+
+	splited := strings.Split(requisition, "-")
+
+	if splited[0] == "set" {
+		return len(splited) >= 3
+	} else if splited[0] == "get" || splited[0] == "delete" {
+		return len(splited) >= 2
+	} else {
+		return false
+	}
 }
