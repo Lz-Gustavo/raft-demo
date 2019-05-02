@@ -36,7 +36,7 @@ func main() {
 	fmt.Println("Raft JoinAcceptor:", joinHandlerAddr)
 	fmt.Println("Join addr:", joinAddr)
 
-	// Initialize the Chat Server
+	// Initialize the Key-value store
 	kvs := New(true)
 	listener, err := net.Listen("tcp", svrPort)
 	if err != nil {
@@ -48,20 +48,14 @@ func main() {
 		log.Fatalf("failed to start raft cluster: %s", err.Error())
 	}
 
+	// Initialize the server
 	server := NewServer(kvs)
 
 	// Send a join request, if any
 	if joinAddr != "" {
-		joinConn, err := net.Dial("tcp", joinAddr)
-		if err != nil {
-			log.Fatalf("failed to connect to leader node at %s: %s", joinAddr, err.Error())
-		}
-
-		_, err = fmt.Fprint(joinConn, svrID+"-"+raftAddr+"-"+"true"+"\n")
-		if err != nil {
+		if err = sendJoinRequest(); err != nil {
 			log.Fatalf("failed to send join request to node at %s: %s", joinAddr, err.Error())
 		}
-		joinConn.Close()
 	}
 
 	go func() {
@@ -80,5 +74,23 @@ func main() {
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
 
-	//server.Shutdown()
+	server.Exit()
+}
+
+func sendJoinRequest() error {
+
+	joinConn, err := net.Dial("tcp", joinAddr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to leader node at %s: %s", joinAddr, err.Error())
+	}
+
+	_, err = fmt.Fprint(joinConn, svrID+"-"+raftAddr+"-"+"true"+"\n")
+	if err != nil {
+		return fmt.Errorf("failed to send join request to node at %s: %s", joinAddr, err.Error())
+	}
+
+	if err = joinConn.Close(); err != nil {
+		return err
+	}
+	return nil
 }

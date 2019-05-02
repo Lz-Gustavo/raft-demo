@@ -27,6 +27,19 @@ func NewServer(s *Store) *Server {
 	return svr
 }
 
+// Exit closes the raft context and releases any resources allocated
+func (svr *Server) Exit() {
+
+	svr.kvstore.raft.Shutdown()
+	svr.kvstore.recov.Close()
+
+	for _, v := range svr.clients {
+		v.Disconnect()
+	}
+	close(svr.joins)
+	close(svr.incoming)
+}
+
 // Broadcast sends a message to every other client on the room
 func (svr *Server) Broadcast(data string) {
 	for _, client := range svr.clients {
@@ -38,8 +51,10 @@ func (svr *Server) Broadcast(data string) {
 func (svr *Server) HandleRequest(data string) {
 	if strings.Contains(data, "get") {
 
-	} else if strings.Contains(data, "join") {
+	} else if strings.Contains(data, "set") {
 
+	} else {
+		// Log
 	}
 }
 
