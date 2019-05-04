@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"strings"
 	"sync"
@@ -42,7 +43,7 @@ func TestTotalOrder(t *testing.T) {
 
 		go func() {
 
-			client, err := New()
+			client, err := New("../client-config.toml")
 			if err != nil {
 				t.Fatalf("failed to find config: %s", err.Error())
 			}
@@ -87,17 +88,16 @@ func TestTotalOrder(t *testing.T) {
 	finishedBarrier.Wait()
 }
 
-func TestRequisitions(b *testing.T) {
-
-	numClients := 4
-	numMessages := 10000
+func TestRequisitionsKvstore(b *testing.T) {
+	numClients := 100
+	numMessages := 20000
 
 	// Create some fake data
 	rand.Seed(time.Now().UnixNano())
 	data := []string{}
 
 	for j := 0; j < numMessages; j++ {
-		data = append(data, randomString(10))
+		data = append(data, randomString(5))
 	}
 	b.Log("Data configured")
 
@@ -107,21 +107,19 @@ func TestRequisitions(b *testing.T) {
 	finishedBarrier := new(sync.WaitGroup)
 	finishedBarrier.Add(numClients)
 
+	clients := make([]*Info, numClients, numClients)
+
 	for i := 0; i < numClients; i++ {
 
-		go func() {
+		go func(i int) {
 
-			// Connect to the cluster
-			client, err := New()
+			var err error
+			clients[i], err = New("../client-config.toml")
 			if err != nil {
 				b.Fatalf("failed to find config: %s", err.Error())
 			}
 
-			b.Log("rep:", client.Rep)
-			b.Log("svrIps:", client.SvrIps)
-			b.Log("mqueueSize:", client.MqueueSize)
-
-			err = client.Connect()
+			err = clients[i].Connect()
 			if err != nil {
 				b.Fatalf("failed to connect to cluster: %s", err.Error())
 			}
@@ -130,14 +128,17 @@ func TestRequisitions(b *testing.T) {
 			configBarrier.Done()
 			configBarrier.Wait()
 
-			// Now send requisitions to the servers
+			// TODO: Send requisitions to the servers
 			for _, v := range data {
-				client.Broadcast(v + "\n")
+				clients[i].Broadcast(fmt.Sprintf("set-%s-%s\n", v, v))
 			}
 
-			//client.Shutdown()
 			finishedBarrier.Done()
-		}()
+		}(i)
 	}
 	finishedBarrier.Wait()
+
+	for _, v := range clients {
+		v.Shutdown()
+	}
 }

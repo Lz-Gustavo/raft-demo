@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -25,11 +26,11 @@ type Info struct {
 }
 
 // New instatiates a new client config struct from toml file
-func New() (*Info, error) {
+func New(config string) (*Info, error) {
 
 	info := &Info{}
 
-	_, err := toml.DecodeFile("../client-config.toml", info)
+	_, err := toml.DecodeFile(config, info)
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +115,20 @@ func (client *Info) Shutdown() {
 	close(client.incoming)
 }
 
+var configFilename string
+
+func init() {
+	flag.StringVar(&configFilename, "config", "", "Filepath to toml file")
+}
+
 func main() {
 
-	cluster, err := New()
+	flag.Parse()
+	if configFilename == "" {
+		log.Fatalln("must set a config filepath: ./client -config '../config.toml'")
+	}
+
+	cluster, err := New(configFilename)
 	if err != nil {
 		log.Fatalf("failed to find config: %s", err.Error())
 	}

@@ -18,6 +18,7 @@ import (
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
+	logLevel            = "ERROR"
 )
 
 // Custom configuration over default for testing
@@ -26,8 +27,7 @@ func configRaft() *raft.Config {
 	config := raft.DefaultConfig()
 	config.SnapshotInterval = 5 * time.Minute
 	config.SnapshotThreshold = 1000024
-	config.LogLevel = "ERROR"
-
+	config.LogLevel = logLevel
 	return config
 }
 
@@ -52,7 +52,7 @@ func New(inmem bool) *Store {
 		inmem: inmem,
 		logger: hclog.New(&hclog.LoggerOptions{
 			Name:   "store",
-			Level:  hclog.LevelFromString("INFO"),
+			Level:  hclog.LevelFromString(logLevel),
 			Output: os.Stderr,
 		}),
 	}
