@@ -115,20 +115,20 @@ func (client *Info) Shutdown() {
 	close(client.incoming)
 }
 
-var configFilename string
+var configFilename *string
 
 func init() {
-	flag.StringVar(&configFilename, "config", "", "Filepath to toml file")
+	configFilename = flag.String("config", "", "Filepath to toml file")
 }
 
 func main() {
 
 	flag.Parse()
-	if configFilename == "" {
+	if *configFilename == "" {
 		log.Fatalln("must set a config filepath: ./client -config '../config.toml'")
 	}
 
-	cluster, err := New(configFilename)
+	cluster, err := New(*configFilename)
 	if err != nil {
 		log.Fatalf("failed to find config: %s", err.Error())
 	}

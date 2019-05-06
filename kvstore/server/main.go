@@ -7,20 +7,27 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/pprof"
 )
 
 var svrID string
 var svrPort string
-var joinAddr string
 var raftAddr string
+var joinAddr string
 var joinHandlerAddr string
+
+var cpuprofile, memprofile *string
 
 func init() {
 	flag.StringVar(&svrID, "id", "", "Set server unique ID")
 	flag.StringVar(&svrPort, "port", ":11000", "Set the server bind address")
 	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
-	flag.StringVar(&joinHandlerAddr, "hjoin", "", "Set port id to receive join requests on the raft cluster")
 	flag.StringVar(&joinAddr, "join", "", "Set join address, if any")
+	flag.StringVar(&joinHandlerAddr, "hjoin", "", "Set port id to receive join requests on the raft cluster")
+
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to a file")
+	memprofile = flag.String("memprofile", "", "write memory profile to a file")
 }
 
 func main() {
@@ -35,6 +42,18 @@ func main() {
 	fmt.Println("Raft Port:", raftAddr)
 	fmt.Println("Raft JoinAcceptor:", joinHandlerAddr)
 	fmt.Println("Join addr:", joinAddr)
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	// Initialize the Key-value store
 	kvs := New(true)
@@ -65,8 +84,8 @@ func main() {
 				log.Fatalf("accept failed: %s", err.Error())
 			}
 
-			//server.logger.Println("New client connected!")
 			server.joins <- conn
+			server.kvstore.logger.Info("New client connected!")
 		}
 	}()
 
@@ -74,6 +93,17 @@ func main() {
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
 
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+	}
 	server.Exit()
 }
 

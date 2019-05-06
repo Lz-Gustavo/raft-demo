@@ -1,8 +1,8 @@
-## raft-demo
+# raft-demo
 
 This repository organizes some demo applications using [hashicorp's Go implementation](https://github.com/hashicorp/raft) of the [Raft Consensus Algorithm](https://raft.github.io).
 
-### Applications
+## Applications
 
 * **chatRoom**
 	
@@ -24,7 +24,7 @@ This repository organizes some demo applications using [hashicorp's Go implement
 	
 	[Otoolep's](https://github.com/otoolep/hraftd) reference example of hashicorp raft, intially logging committed messages using Journey.
 
-### Usage
+## Usage
 
 **chatRoom and kvstore** 
 
@@ -63,7 +63,7 @@ This repository organizes some demo applications using [hashicorp's Go implement
 
 		```
 		go build
-		./client -config ../client-config.toml
+		./client -config=../client-config.toml
 		```
 
 **OBS:** Message formats accepted by the kvstore are:
@@ -74,5 +74,13 @@ This repository organizes some demo applications using [hashicorp's Go implement
 		delete-[key]
 		``` 
 
-### License
+## Profiling
+
+**kvstore** application supports both CPU and memory profiling from [pprof](https://golang.org/pkg/runtime/pprof/) library. To record some performance metrics, you just need to run the server programm passing the flags:
+
+		```
+		./server -cpuprofile=filename.prof -memprofile=filename.prof
+		```
+
+## License
 MPL 2.0

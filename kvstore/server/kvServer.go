@@ -81,7 +81,13 @@ func (svr *Server) Join(connection net.Conn) {
 	svr.clients = append(svr.clients, client)
 	go func() {
 		for {
-			svr.incoming <- <-client.incoming
+			select {
+			case data, ok := <-client.incoming:
+				if !ok {
+					return
+				}
+				svr.incoming <- data
+			}
 		}
 	}()
 }
@@ -97,7 +103,10 @@ func (svr *Server) Listen() {
 				}
 				svr.HandleRequest(data)
 
-			case conn := <-svr.joins:
+			case conn, ok := <-svr.joins:
+				if !ok {
+					return
+				}
 				svr.Join(conn)
 			}
 		}
