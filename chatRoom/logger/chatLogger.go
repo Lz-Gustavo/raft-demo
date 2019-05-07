@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/Lz-Gustavo/raft"
+	"github.com/hashicorp/raft"
 )
 
 // Custom configuration over default for testing

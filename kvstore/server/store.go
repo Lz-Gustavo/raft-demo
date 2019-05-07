@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Lz-Gustavo/raft"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/raft"
 )
 
 const (

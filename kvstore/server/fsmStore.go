@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/Lz-Gustavo/raft"
+	"github.com/hashicorp/raft"
 )
 
 type fsm Store

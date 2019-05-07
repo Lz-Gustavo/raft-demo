@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Lz-Gustavo/raft"
+	"github.com/hashicorp/raft"
 )
 
 const (
