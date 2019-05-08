@@ -15,6 +15,7 @@ type fsm Store
 func (f *fsm) Apply(l *raft.Log) interface{} {
 
 	message := string(l.Data)
+	message = strings.TrimSuffix(message, "\n")
 	req := strings.Split(message, "-")
 
 	switch req[0] {

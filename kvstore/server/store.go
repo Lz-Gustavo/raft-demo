@@ -76,12 +76,14 @@ func (s *Store) Propose(msg string, svr *Server) error {
 	f := s.raft.Apply([]byte(msg), raftTimeout)
 	err := f.Error()
 
-	if strings.HasPrefix(lowerCase, "get") {
-		value := f.Response().(string)
-		// TODO: respond to the specific replica, not broadcast
-		fmt.Println("VALUE:", value)
-		svr.Broadcast(value + "\n")
-		err = nil
+	if err == nil {
+		if strings.HasPrefix(lowerCase, "get") {
+			value := f.Response().(string)
+			// TODO: respond to the specific replica, not broadcast
+			svr.Broadcast(value + "\n")
+		} else {
+			svr.Broadcast("OK\n")
+		}
 	}
 	return err
 }

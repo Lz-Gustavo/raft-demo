@@ -60,7 +60,8 @@ func (svr *Server) HandleRequest(data string) {
 		}
 		atomic.AddUint64(&svr.req, 1)
 	} else {
-		svr.kvstore.logger.Warn(fmt.Sprintf("Operation: %q not recognized\n", data))
+		svr.kvstore.logger.Warn(fmt.Sprintf("Operation: %q not recognized", data))
+		svr.Broadcast("404-cmd not found\n")
 	}
 }
 
