@@ -18,15 +18,15 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	message = strings.TrimSuffix(message, "\n")
 	req := strings.Split(message, "-")
 
-	switch req[0] {
+	switch req[1] {
 	case "set":
-		return f.applySet(req[1], req[2])
+		return f.applySet(req[2], req[3])
 	case "delete":
-		return f.applyDelete(req[1])
+		return f.applyDelete(req[2])
 	case "get":
-		return f.applyGet(req[1])
+		return f.applyGet(req[2])
 	default:
-		panic(fmt.Sprintf("unrecognized command op: %s", req[0]))
+		panic(fmt.Sprintf("unrecognized command op: %s", req[1]))
 	}
 }
 

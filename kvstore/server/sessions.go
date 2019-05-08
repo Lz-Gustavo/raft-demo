@@ -5,24 +5,27 @@ import (
 	"net"
 )
 
-// Session struct which represents each ...
+// Session struct which represents each active client session connected
+// on the cluster
 type Session struct {
 	incoming chan string
 	outgoing chan string
 	reader   *bufio.Reader
 	writer   *bufio.Writer
+	conn     net.Conn
 }
 
 // NewSession instantiates a new client
 func NewSession(connection net.Conn) *Session {
-	writer := bufio.NewWriter(connection)
 	reader := bufio.NewReader(connection)
+	writer := bufio.NewWriter(connection)
 
 	client := &Session{
 		incoming: make(chan string),
 		outgoing: make(chan string),
 		reader:   reader,
 		writer:   writer,
+		conn:     connection,
 	}
 
 	client.Listen()
@@ -32,8 +35,7 @@ func NewSession(connection net.Conn) *Session {
 func (client *Session) Read() {
 	for {
 		line, err := client.reader.ReadString('\n')
-		if (err == nil) && (len(line) > 1) {
-			//fmt.Println("Received message: ", line)
+		if err == nil && len(line) > 1 {
 			client.incoming <- line
 		}
 	}
@@ -46,15 +48,17 @@ func (client *Session) Write() {
 	}
 }
 
-// Listen ...
+// Listen launches Read and Write for every new client connected, async.
+// sending/receiving messages following publish/subscriber pattern
 func (client *Session) Listen() {
 	go client.Read()
 	go client.Write()
 }
 
-// Disconnect ...
+// Disconnect closes both in and out channels, consequently panicking
+// Read and Write goroutines
 func (client *Session) Disconnect() {
-
 	close(client.incoming)
 	close(client.outgoing)
+	client.conn.Close()
 }

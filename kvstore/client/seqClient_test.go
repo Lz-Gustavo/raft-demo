@@ -3,16 +3,17 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"sync"
 	"testing"
 )
 
 func TestRequisitionsKvstore(b *testing.T) {
 	numClients := 5
-	numMessages := 300
+	numMessages := 400
 
 	numKey := 100
-	//storeValue := "-----"
+	storeValue := "-----"
 
 	configBarrier := new(sync.WaitGroup)
 	configBarrier.Add(numClients)
@@ -23,29 +24,37 @@ func TestRequisitionsKvstore(b *testing.T) {
 	clients := make([]*Info, numClients, numClients)
 
 	for i := 0; i < numClients; i++ {
-		go func(i int) {
+		go func(j int) {
 
 			var err error
-			clients[i], err = New("client-config.toml")
+			clients[j], err = New("client-config.toml")
 			if err != nil {
 				b.Fatalf("failed to find config: %s", err.Error())
 			}
 
-			err = clients[i].Connect()
+			err = clients[j].Connect()
 			if err != nil {
 				b.Fatalf("failed to connect to cluster: %s", err.Error())
+			}
+
+			// TODO: modify this port/addr set
+			port := strconv.Itoa(15000 + j)
+			clients[j].Udpaddr = "127.0.0.1:" + port
+			err = clients[j].StartUDP()
+			if err != nil {
+				b.Fatalf("failed to start UDP socket: %s", err.Error())
 			}
 
 			// Wait until all goroutines finish configuration
 			configBarrier.Done()
 			configBarrier.Wait()
 
-			for j := 0; j < numMessages; j++ {
-				//clients[i].Broadcast(fmt.Sprintf("set-%d-%s\n", rand.Intn(numKey), storeValue))
-				clients[i].Broadcast(fmt.Sprintf("get-%d\n", rand.Intn(numKey)))
-				//clients[i].Broadcast(fmt.Sprintf("delete-%d\n", rand.Intn(numKey)))
+			for k := 0; k < numMessages; k++ {
+				clients[j].Broadcast(fmt.Sprintf("set-%d-%s\n", rand.Intn(numKey), storeValue))
+				//clients[j].Broadcast(fmt.Sprintf("get-%d\n", rand.Intn(numKey)))
+				//clients[j].Broadcast(fmt.Sprintf("delete-%d\n", rand.Intn(numKey)))
 
-				repply := clients[i].ReadParallel()
+				repply, _ := clients[j].ReadUDP()
 				b.Log("Received value:", repply)
 			}
 			finishedBarrier.Done()

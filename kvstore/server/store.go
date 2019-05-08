@@ -72,17 +72,19 @@ func (s *Store) Propose(msg string, svr *Server) error {
 
 	lowerCase := strings.ToLower(msg)
 	lowerCase = strings.TrimSuffix(lowerCase, "\n")
+	content := strings.Split(lowerCase, "-")
 
 	f := s.raft.Apply([]byte(msg), raftTimeout)
 	err := f.Error()
 
 	if err == nil {
-		if strings.HasPrefix(lowerCase, "get") {
+		if content[1] == "get" {
 			value := f.Response().(string)
-			// TODO: respond to the specific replica, not broadcast
-			svr.Broadcast(value + "\n")
+			//svr.Broadcast(value + "\n")
+			svr.SendUDP(content[0], value+"\n")
 		} else {
-			svr.Broadcast("OK\n")
+			//svr.Broadcast("OK\n")
+			svr.SendUDP(content[0], "OK\n")
 		}
 	}
 	return err

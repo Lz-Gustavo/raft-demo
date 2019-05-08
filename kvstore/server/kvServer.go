@@ -51,6 +51,13 @@ func (svr *Server) Broadcast(data string) {
 	}
 }
 
+// SendUDP sends a UDP repply to a client listening on 'addr'
+func (svr *Server) SendUDP(addr string, message string) {
+	conn, _ := net.Dial("udp", addr)
+	defer conn.Close()
+	conn.Write([]byte(message))
+}
+
 // HandleRequest handles the client requistion, checking if it matches the right syntax
 // before proposing it to the FSM
 func (svr *Server) HandleRequest(data string) {
@@ -118,9 +125,9 @@ func validateReq(requisition string) bool {
 	requisition = strings.ToLower(requisition)
 	splited := strings.Split(requisition, "-")
 
-	if splited[0] == "set" {
+	if splited[1] == "set" {
 		return len(splited) >= 3
-	} else if splited[0] == "get" || splited[0] == "delete" {
+	} else if splited[1] == "get" || splited[1] == "delete" {
 		return len(splited) >= 2
 	} else {
 		return false

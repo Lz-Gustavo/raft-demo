@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -20,7 +21,10 @@ type Info struct {
 	Svrs   []net.Conn
 	reader []*bufio.Reader
 
-	// TODO: time variables
+	Udpaddr  string
+	receiver *net.UDPConn
+
+	// TODO: time variables to measure server latency
 }
 
 // New instatiates a new sequential client config struct from toml file.
@@ -30,12 +34,10 @@ type Info struct {
 func New(config string) (*Info, error) {
 
 	info := &Info{}
-
 	_, err := toml.DecodeFile(config, info)
 	if err != nil {
 		return nil, err
 	}
-
 	return info, nil
 }
 
@@ -63,10 +65,31 @@ func (client *Info) Disconnect() {
 	}
 }
 
+// StartUDP initializes UDP listener, used to receive servers repplies
+func (client *Info) StartUDP() error {
+
+	splitIP := strings.Split(client.Udpaddr, ":")
+	port, err := strconv.Atoi(splitIP[1])
+	if err != nil {
+		return err
+	}
+	addr := net.UDPAddr{
+		IP:   net.ParseIP(splitIP[0]),
+		Port: port,
+		Zone: "",
+	}
+	conn, err := net.ListenUDP("udp", &addr)
+	if err != nil {
+		return err
+	}
+	client.receiver = conn
+	return nil
+}
+
 // Broadcast a message to the cluster
 func (client *Info) Broadcast(message string) error {
 	for _, v := range client.Svrs {
-		_, err := fmt.Fprint(v, message)
+		_, err := fmt.Fprint(v, client.Udpaddr+"-"+message)
 		if err != nil {
 			return err
 		}
@@ -74,8 +97,8 @@ func (client *Info) Broadcast(message string) error {
 	return nil
 }
 
-// Read consumes any data from reader socket and returns it
-func (client *Info) Read(readerID int) string {
+// ReadTCP consumes any data from reader socket and returns it
+func (client *Info) ReadTCP(readerID int) string {
 	line, err := client.reader[readerID].ReadString('\n')
 	if (err == nil) && (len(line) > 1) {
 		return line
@@ -83,18 +106,18 @@ func (client *Info) Read(readerID int) string {
 	return ""
 }
 
-// ReadParallel launches go routines to read from every socket connected to
+// ReadTCPParallel launches go routines to read from every socket connected to
 // the cluster, and returns the first response.
 //
 // TODO: currently it blocks during ReadString() invocation, not releasing
 // the go routine until it receives the delim from the socket. Thats not a
 // desired behavior, since it may be expecting repplies from a faulty replica
-func (client *Info) ReadParallel() string {
+func (client *Info) ReadTCPParallel() string {
 
-	chn := make(chan string, 0)
+	chn := make(chan string, client.Rep)
 	for i := range client.reader {
 
-		go func(j int, rp chan string) {
+		go func(j int, rp chan<- string) {
 
 			line, err := client.reader[j].ReadString('\n')
 			if err == nil {
@@ -104,6 +127,17 @@ func (client *Info) ReadParallel() string {
 		}(i, chn)
 	}
 	return <-chn
+}
+
+// ReadUDP returns any received message from UDP listener for servers reppply
+func (client *Info) ReadUDP() (string, error) {
+
+	data := make([]byte, 128)
+	_, _, err := client.receiver.ReadFromUDP(data)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // Shutdown realeases every resource and finishes goroutines launched by the
@@ -132,10 +166,16 @@ func main() {
 
 	fmt.Println("rep:", cluster.Rep)
 	fmt.Println("svrIps:", cluster.SvrIps)
+	fmt.Println("udpaddr:", cluster.Udpaddr)
 
 	err = cluster.Connect()
 	if err != nil {
 		log.Fatalf("failed to connect to cluster: %s", err.Error())
+	}
+
+	err = cluster.StartUDP()
+	if err != nil {
+		log.Fatalf("failed to initialize UDP socket: %s", err.Error())
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -146,7 +186,7 @@ func main() {
 			log.Printf("input reader failed: %s", err.Error())
 			continue
 		}
-		if strings.Contains(text, "exit") {
+		if strings.HasPrefix(text, "exit") {
 			cluster.Shutdown()
 			break
 		}
@@ -159,14 +199,15 @@ func main() {
 		// TODO: These serialized calls to Read() are inneficient, must find a way
 		// to execute an async read to every socket with a better performance
 		// for i := range cluster.reader {
-		// 	repply := cluster.Read(i)
+		// 	repply := cluster.ReadTCP(i)
 		// 	if repply != "" {
 		// 		fmt.Printf("Received message: %s", repply)
 		// 		break
 		// 	}
 		// }
 
-		repply := cluster.ReadParallel()
+		//repply := cluster.ReadTCPParallel()
+		repply, _ := cluster.ReadUDP()
 		fmt.Printf("Received message: %s", repply)
 	}
 }
