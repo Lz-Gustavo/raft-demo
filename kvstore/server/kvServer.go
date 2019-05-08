@@ -54,19 +54,8 @@ func (svr *Server) Broadcast(data string) {
 // HandleRequest handles the client requistion, checking if it matches the right syntax
 // before proposing it to the FSM
 func (svr *Server) HandleRequest(data string) {
-
-	lowerCase := strings.ToLower(data)
-	if validateReq(lowerCase) {
-
-		if strings.HasPrefix(lowerCase, "get") {
-			lowerCase = strings.TrimSuffix(lowerCase, "\n")
-			content := strings.Split(lowerCase, "-")
-
-			// TODO: Respond get value correctly (not broadcast)
-			value := svr.kvstore.Get(content[1])
-			svr.Broadcast(value)
-
-		} else if err := svr.kvstore.Propose(data); err != nil {
+	if validateReq(data) {
+		if err := svr.kvstore.Propose(data, svr); err != nil {
 			svr.kvstore.logger.Error(fmt.Sprintf("Failed to propose message: %q, error: %s\n", data, err.Error()))
 		}
 		atomic.AddUint64(&svr.req, 1)
@@ -125,6 +114,7 @@ func (svr *Server) monitor() {
 
 func validateReq(requisition string) bool {
 
+	requisition = strings.ToLower(requisition)
 	splited := strings.Split(requisition, "-")
 
 	if splited[0] == "set" {

@@ -22,6 +22,8 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 		return f.applySet(req[1], req[2])
 	case "delete":
 		return f.applyDelete(req[1])
+	case "get":
+		return f.applyGet(req[1])
 	default:
 		panic(fmt.Sprintf("unrecognized command op: %s", req[0]))
 	}
@@ -65,6 +67,12 @@ func (f *fsm) applyDelete(key string) interface{} {
 	defer f.mu.Unlock()
 	delete(f.m, key)
 	return nil
+}
+
+func (f *fsm) applyGet(key string) interface{} {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.m[key]
 }
 
 type fsmSnapshot struct {

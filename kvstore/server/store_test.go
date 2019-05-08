@@ -41,24 +41,24 @@ func TestOperations(t *testing.T) {
 	// Simple way to ensure there is a leader.
 	time.Sleep(3 * time.Second)
 
-	if err := s.Propose("set-foo-bar"); err != nil {
+	if err := s.Propose("set-foo-bar", nil); err != nil {
 		t.Fatalf("failed to set key: %s", err.Error())
 	}
 
 	// Wait for committed log entry to be applied.
 	time.Sleep(500 * time.Millisecond)
-	value := s.Get("foo")
+	value := s.testGet("foo")
 	if value != "bar" {
 		t.Fatalf("key has wrong value: %s", value)
 	}
 
-	if err := s.Propose("delete-foo-bar"); err != nil {
+	if err := s.Propose("delete-foo-bar", nil); err != nil {
 		t.Fatalf("failed to delete key: %s", err.Error())
 	}
 
 	// Wait for committed log entry to be applied.
 	time.Sleep(500 * time.Millisecond)
-	value = s.Get("foo")
+	value = s.testGet("foo")
 	if value != "" {
 		t.Fatalf("key has wrong value: %s", value)
 	}

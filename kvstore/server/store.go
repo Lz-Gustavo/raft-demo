@@ -64,18 +64,31 @@ func New(inmem bool) *Store {
 }
 
 // Propose ....
-func (s *Store) Propose(msg string) error {
+func (s *Store) Propose(msg string, svr *Server) error {
 
 	if s.raft.State() != raft.Leader {
 		return nil
 	}
 
+	lowerCase := strings.ToLower(msg)
+	lowerCase = strings.TrimSuffix(lowerCase, "\n")
+
 	f := s.raft.Apply([]byte(msg), raftTimeout)
-	return f.Error()
+	err := f.Error()
+
+	if strings.HasPrefix(lowerCase, "get") {
+		value := f.Response().(string)
+		// TODO: respond to the specific replica, not broadcast
+		fmt.Println("VALUE:", value)
+		svr.Broadcast(value + "\n")
+		err = nil
+	}
+	return err
 }
 
-// Get returns the value for the given key.
-func (s *Store) Get(key string) string {
+// testGet returns the value for the given key, just using in unit tests since it results
+// in an inconsistence read operation, not following total ordering.
+func (s *Store) testGet(key string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.m[key]

@@ -23,6 +23,8 @@ type Info struct {
 
 	MqueueSize int
 	Mq         *MessageQueue
+
+	// TODO: time variables
 }
 
 // New instatiates a new client config struct from toml file
@@ -104,6 +106,7 @@ func (client *Info) Consume() {
 			continue
 		}
 		fmt.Println("Received message:", v)
+		// TODO: append TIMESTAMP to capture latency after serialize requisitions.
 	}
 }
 

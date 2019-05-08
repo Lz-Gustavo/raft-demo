@@ -89,15 +89,18 @@ func TestTotalOrder(t *testing.T) {
 }
 
 func TestRequisitionsKvstore(b *testing.T) {
-	numClients := 100
-	numMessages := 20000
+	numClients := 5
+	numMessages := 30
+
+	numKey := 100
+	//storeValue := "-----"
 
 	// Create some fake data
 	rand.Seed(time.Now().UnixNano())
 	data := []string{}
 
 	for j := 0; j < numMessages; j++ {
-		data = append(data, randomString(5))
+		data = append(data, randomString(3))
 	}
 	b.Log("Data configured")
 
@@ -110,7 +113,6 @@ func TestRequisitionsKvstore(b *testing.T) {
 	clients := make([]*Info, numClients, numClients)
 
 	for i := 0; i < numClients; i++ {
-
 		go func(i int) {
 
 			var err error
@@ -128,9 +130,10 @@ func TestRequisitionsKvstore(b *testing.T) {
 			configBarrier.Done()
 			configBarrier.Wait()
 
-			// TODO: Send requisitions to the servers
-			for _, v := range data {
-				clients[i].Broadcast(fmt.Sprintf("set-%s-%s\n", v, v))
+			for j := 0; j < numMessages; j++ {
+				//clients[i].Broadcast(fmt.Sprintf("set-%d-%s\n", rand.Intn(numKey), storeValue))
+				clients[i].Broadcast(fmt.Sprintf("get-%d\n", rand.Intn(numKey)))
+				//clients[i].Broadcast(fmt.Sprintf("delete-%d\n", rand.Intn(numKey)))
 			}
 
 			finishedBarrier.Done()
