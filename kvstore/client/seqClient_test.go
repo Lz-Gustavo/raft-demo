@@ -3,14 +3,13 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
 	"sync"
 	"testing"
 )
 
 func TestRequisitionsKvstore(b *testing.T) {
-	numClients := 5
-	numMessages := 400
+	numClients := 3
+	numMessages := 300
 
 	numKey := 100
 	storeValue := "-----"
@@ -37,9 +36,7 @@ func TestRequisitionsKvstore(b *testing.T) {
 				b.Fatalf("failed to connect to cluster: %s", err.Error())
 			}
 
-			// TODO: modify this port/addr set
-			port := strconv.Itoa(15000 + j)
-			clients[j].Udpaddr = "127.0.0.1:" + port
+			clients[j].Udpport = 15000 + j
 			err = clients[j].StartUDP()
 			if err != nil {
 				b.Fatalf("failed to start UDP socket: %s", err.Error())

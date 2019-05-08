@@ -21,7 +21,7 @@ type Info struct {
 	Svrs   []net.Conn
 	reader []*bufio.Reader
 
-	Udpaddr  string
+	Udpport  int
 	receiver *net.UDPConn
 
 	// TODO: time variables to measure server latency
@@ -68,14 +68,14 @@ func (client *Info) Disconnect() {
 // StartUDP initializes UDP listener, used to receive servers repplies
 func (client *Info) StartUDP() error {
 
-	splitIP := strings.Split(client.Udpaddr, ":")
-	port, err := strconv.Atoi(splitIP[1])
-	if err != nil {
-		return err
-	}
+	//splitIP := strings.Split(client.Udpaddr, ":")
+	// port, err := strconv.Atoi(splitIP[1])
+	// if err != nil {
+	// 	return err
+	// }
 	addr := net.UDPAddr{
-		IP:   net.ParseIP(splitIP[0]),
-		Port: port,
+		IP:   net.ParseIP("127.0.0.1"),
+		Port: client.Udpport,
 		Zone: "",
 	}
 	conn, err := net.ListenUDP("udp", &addr)
@@ -89,7 +89,7 @@ func (client *Info) StartUDP() error {
 // Broadcast a message to the cluster
 func (client *Info) Broadcast(message string) error {
 	for _, v := range client.Svrs {
-		_, err := fmt.Fprint(v, client.Udpaddr+"-"+message)
+		_, err := fmt.Fprint(v, strconv.Itoa(client.Udpport)+"-"+message)
 		if err != nil {
 			return err
 		}
@@ -166,7 +166,7 @@ func main() {
 
 	fmt.Println("rep:", cluster.Rep)
 	fmt.Println("svrIps:", cluster.SvrIps)
-	fmt.Println("udpaddr:", cluster.Udpaddr)
+	fmt.Println("udpaddr:", cluster.Udpport)
 
 	err = cluster.Connect()
 	if err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"net"
+	"strings"
 )
 
 // Session struct which represents each active client session connected
@@ -36,7 +37,9 @@ func (client *Session) Read() {
 	for {
 		line, err := client.reader.ReadString('\n')
 		if err == nil && len(line) > 1 {
-			client.incoming <- line
+			ip := client.conn.RemoteAddr().String()
+			ipContent := strings.Split(ip, ":")
+			client.incoming <- ipContent[0] + ":" + line
 		}
 	}
 }

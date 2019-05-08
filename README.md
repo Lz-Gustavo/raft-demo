@@ -28,12 +28,12 @@ This repository organizes some demo applications using [hashicorp's Go implement
 
 **chatRoom and kvstore** 
 
-1. Set the number of replicas and their corresponding IP's on a .toml config file
+1. Set the number of replicas, their corresponding IP's and a port to listen for cluster UDP repplies on a .toml config file
 
 		```bash
 		rep=3
 		svrIps=["127.0.0.1:11000", "127.0.0.1:11001", "127.0.0.1:11002"]
-		mqueueSize=100
+		udpport=15000
 		```
 
 2. Build and run the first server, passing a corresponding address to handle new join requests to the cluster. If no "-port" and "-raft" are set, ":11000" and ":12000" are assumed.
