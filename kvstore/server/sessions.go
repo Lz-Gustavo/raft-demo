@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"net"
 	"strings"
 )
@@ -40,6 +41,8 @@ func (client *Session) Read() {
 			ip := client.conn.RemoteAddr().String()
 			ipContent := strings.Split(ip, ":")
 			client.incoming <- ipContent[0] + ":" + line
+		} else if err == io.EOF {
+			return
 		}
 	}
 }

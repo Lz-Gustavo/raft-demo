@@ -63,7 +63,10 @@ func New(inmem bool) *Store {
 	return s
 }
 
-// Propose ....
+// Propose invokes Raft.Apply to propose a new command following protocol's atomic broadcast
+// to the application's FSM. Sends an "OK" repply to inform commitment. This procedure applies
+// "Get" requisitions to prevent inconsistent reads (that do not follow total ordering). etcd's
+// issue #741 gives a good explanation about this problem.
 func (s *Store) Propose(msg string, svr *Server) error {
 
 	if s.raft.State() != raft.Leader {
@@ -80,10 +83,8 @@ func (s *Store) Propose(msg string, svr *Server) error {
 	if err == nil {
 		if content[1] == "get" {
 			value := f.Response().(string)
-			//svr.Broadcast(value + "\n")
 			svr.SendUDP(content[0], value+"\n")
 		} else {
-			//svr.Broadcast("OK\n")
 			svr.SendUDP(content[0], "OK\n")
 		}
 	}

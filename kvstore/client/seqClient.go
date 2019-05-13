@@ -23,8 +23,6 @@ type Info struct {
 
 	Udpport  int
 	receiver *net.UDPConn
-
-	// TODO: time variables to measure server latency
 }
 
 // New instatiates a new sequential client config struct from toml file.
@@ -68,11 +66,6 @@ func (client *Info) Disconnect() {
 // StartUDP initializes UDP listener, used to receive servers repplies
 func (client *Info) StartUDP() error {
 
-	//splitIP := strings.Split(client.Udpaddr, ":")
-	// port, err := strconv.Atoi(splitIP[1])
-	// if err != nil {
-	// 	return err
-	// }
 	addr := net.UDPAddr{
 		IP:   net.ParseIP("127.0.0.1"),
 		Port: client.Udpport,
@@ -205,8 +198,8 @@ func main() {
 		// 		break
 		// 	}
 		// }
-
 		//repply := cluster.ReadTCPParallel()
+
 		repply, _ := cluster.ReadUDP()
 		fmt.Printf("Received message: %s", repply)
 	}
