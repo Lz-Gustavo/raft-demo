@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
 	"sync"
 	"testing"
 	"time"
 )
 
 type config struct {
-	configFile  *string
 	numKey      int
 	numClients  int
 	numMessages int
@@ -23,7 +24,6 @@ func init() {
 	flag.IntVar(&Cfg.numClients, "clients", 0, "Set the number of clients")
 	flag.IntVar(&Cfg.numMessages, "req", 0, "Set the number of sent requisitions by each client")
 	flag.IntVar(&Cfg.numKey, "key", 0, "Set the number of differente keys for hash set")
-	Cfg.configFile = flag.String("testfile", "", "test config toml file")
 }
 
 func TestKvstore(b *testing.T) {
@@ -45,6 +45,13 @@ func TestKvstore(b *testing.T) {
 
 	finishedBarrier := new(sync.WaitGroup)
 	finishedBarrier.Add(numClients)
+
+	outFile, err := os.OpenFile("testLatency.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		b.Fatalf("could not open log file: %s\n", err.Error())
+	}
+	defer outFile.Close()
+	logger := log.New(outFile, "", 0)
 
 	clients := make([]*Info, numClients, numClients)
 
@@ -80,12 +87,13 @@ func TestKvstore(b *testing.T) {
 
 			for k := 0; k < numMessages; k++ {
 
+				op = rand.Intn(3)
 				coinThroughtput = rand.Intn(measureThroughput)
 				if coinThroughtput == 0 {
-					start = time.Now()
 					flagStopwatch = true
+					start = time.Now()
 				}
-				op = rand.Intn(3)
+
 				switch op {
 				case 0:
 					clients[j].Broadcast(fmt.Sprintf("set-%d-%s\n", rand.Intn(numKey), storeValue))
@@ -102,6 +110,7 @@ func TestKvstore(b *testing.T) {
 				if flagStopwatch {
 					finish = time.Since(start)
 					b.Log(finish)
+					logger.Println(finish)
 					flagStopwatch = false
 				}
 			}

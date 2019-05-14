@@ -116,6 +116,7 @@ func (svr *Server) monitor() {
 			time.Sleep(1 * time.Second)
 			cont := atomic.SwapUint64(&svr.req, 0)
 			svr.kvstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
+			fmt.Println(cont)
 		}
 	}()
 }
