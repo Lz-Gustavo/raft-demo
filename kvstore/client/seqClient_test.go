@@ -78,7 +78,7 @@ func TestKvstore(b *testing.T) {
 			// Control variables
 			var op, coinThroughtput int
 			var start time.Time
-			var finish time.Duration
+			var finish int64
 			var flagStopwatch bool
 
 			// Wait until all goroutines finish configuration
@@ -108,7 +108,7 @@ func TestKvstore(b *testing.T) {
 					b.Logf("UDP error: %q, caught repply: %s", err.Error(), repply)
 				}
 				if flagStopwatch {
-					finish = time.Since(start)
+					finish = int64(time.Since(start) / time.Nanosecond)
 					b.Log(finish)
 					logger.Println(finish)
 					flagStopwatch = false
