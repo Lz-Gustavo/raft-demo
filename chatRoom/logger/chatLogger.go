@@ -36,9 +36,8 @@ type Logger struct {
 func NewLogger() *Logger {
 	log := &Logger{
 		log:   log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
-		recov: journey.New("log-file-" + logID + ".txt"),
+		recov: journey.New(journey.DefaultConfig, "log-file-"+logID+".txt"),
 	}
-
 	return log
 }
 
@@ -77,7 +76,6 @@ func (lgr *Logger) StartRaft(localID string) error {
 		return fmt.Errorf("new raft: %s", err)
 	}
 	lgr.raft = ra
-
 	return nil
 }
 

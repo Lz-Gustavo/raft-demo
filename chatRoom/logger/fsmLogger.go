@@ -18,7 +18,10 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 
 	message := string(l.Data)
 	message = strings.TrimSuffix(message, "\n")
-	s.recov.Put(0, journey.Write, message, time.Now().Format(time.Stamp))
+
+	// TODO: must modify recov.Put() to log following journey's semantics. Passing
+	// specific operation type and operands
+	s.recov.Put(0, journey.Set, message, time.Now().Format(time.Stamp))
 	return nil
 }
 
