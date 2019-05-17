@@ -21,6 +21,8 @@ type config struct {
 
 var Cfg *config
 
+const storeValue = "@@@@@"
+
 func init() {
 	Cfg = new(config)
 	flag.IntVar(&Cfg.numClients, "clients", 0, "Set the number of clients")
@@ -35,7 +37,6 @@ func TestNumMessagesKvstore(b *testing.T) {
 	if Cfg.numClients == 0 || Cfg.numMessages == 0 || Cfg.numKey == 0 {
 		b.Fatal("Must define a number of clients/messages/diff keys > zero")
 	}
-	storeValue := "-----"
 	measureThroughput := 50
 
 	configBarrier := new(sync.WaitGroup)
@@ -147,7 +148,6 @@ func TestClientTimeKvstore(b *testing.T) {
 	signal := make(chan bool)
 	requests := make(chan string, Cfg.numMessages)
 
-	storeValue := "-----"
 	go generateRequests(requests, signal, Cfg.numKey, storeValue)
 	go killWorkers(Cfg.execTime, signal)
 
