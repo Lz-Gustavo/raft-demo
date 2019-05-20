@@ -25,8 +25,8 @@ const (
 func configRaft() *raft.Config {
 
 	config := raft.DefaultConfig()
-	config.SnapshotInterval = 5 * time.Minute
-	config.SnapshotThreshold = 1000024
+	config.SnapshotInterval = 24 * time.Hour
+	config.SnapshotThreshold = 2 << 62
 	config.LogLevel = logLevel
 	return config
 }

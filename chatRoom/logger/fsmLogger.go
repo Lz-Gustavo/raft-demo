@@ -4,7 +4,6 @@ import (
 	"io"
 	"journey"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/raft"
 )
@@ -22,11 +21,11 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 
 	switch content[1] {
 	case "set":
-		s.recov.Put(l.Index, journey.Set, content[2]+"-"+content[3], content[0], time.Now().Format(time.Stamp))
+		s.recov.Put(l.Index, journey.Set, strings.Join(content[2:], "-"), "", "")
 	case "get":
-		s.recov.Put(l.Index, journey.Get, content[2], content[0], time.Now().Format(time.Stamp))
+		s.recov.Put(l.Index, journey.Get, content[2], "", "")
 	case "delete":
-		s.recov.Put(l.Index, journey.Delete, content[2], content[0], time.Now().Format(time.Stamp))
+		s.recov.Put(l.Index, journey.Delete, content[2], "", "")
 	}
 	return nil
 }
