@@ -37,12 +37,6 @@ func main() {
 		log.Fatalln("must set a server ID, run with: ./server -id 'svrID'")
 	}
 
-	//fmt.Println("Server ID:", svrID)
-	//fmt.Println("Server Port:", svrPort)
-	//fmt.Println("Raft Port:", raftAddr)
-	//fmt.Println("Raft JoinAcceptor:", joinHandlerAddr)
-	//fmt.Println("Join addr:", joinAddr)
-
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {

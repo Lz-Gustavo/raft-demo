@@ -33,9 +33,13 @@ type Logger struct {
 
 // NewLogger constructs a new Logger struct and its dependencies
 func NewLogger() *Logger {
+
+	config := journey.DefaultConfig
+	config.Batch = 100
+
 	log := &Logger{
 		log:   log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
-		recov: journey.New(journey.DefaultConfig, "log-file-"+logID+".txt"),
+		recov: journey.New(config, "log-file-"+logID+".txt"),
 	}
 	return log
 }
@@ -94,18 +98,12 @@ func main() {
 	if logID == "" {
 		log.Fatalln("must set a logger ID, run with: ./logger -id 'logID'")
 	}
-
-	fmt.Println("Logger ID:", logID)
-	fmt.Println("Raft Port:", raftAddr)
-	fmt.Println("Join addr:", joinAddr)
-
 	logger := NewLogger()
 
 	// Start the Raft cluster
 	if err := logger.StartRaft(logID); err != nil {
 		log.Fatalf("failed to start raft cluster: %s", err.Error())
 	}
-
 	if err := sendJoinRequest(); err != nil {
 		log.Fatalf("failed to send join request to node at %s: %s", joinAddr, err.Error())
 	}
@@ -113,7 +111,6 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
-
 	logger.recov.Close()
 }
 
@@ -132,6 +129,5 @@ func sendJoinRequest() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
