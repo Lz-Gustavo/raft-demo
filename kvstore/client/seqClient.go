@@ -21,6 +21,7 @@ type Info struct {
 	Svrs   []net.Conn
 	reader []*bufio.Reader
 
+	Localip  string
 	Udpport  int
 	receiver *net.UDPConn
 }
@@ -67,7 +68,7 @@ func (client *Info) Disconnect() {
 func (client *Info) StartUDP() error {
 
 	addr := net.UDPAddr{
-		IP:   net.ParseIP("127.0.0.1"),
+		IP:   net.ParseIP(client.Localip),
 		Port: client.Udpport,
 		Zone: "",
 	}
