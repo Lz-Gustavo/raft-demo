@@ -40,7 +40,8 @@ func (client *Session) Read() {
 		if err == nil && len(line) > 1 {
 			ip := client.conn.RemoteAddr().String()
 			ipContent := strings.Split(ip, ":")
-			client.incoming <- ipContent[0] + ":" + line
+			concat := []string{ipContent[0], line}
+			client.incoming <- strings.Join(concat, ":")
 		} else if err == io.EOF {
 			return
 		}
