@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"journey"
 	"log"
 	"net"
 	"os"
@@ -19,6 +20,8 @@ const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
+
+	recovLog = false
 )
 
 // Custom configuration over default for testing
@@ -42,6 +45,9 @@ type Store struct {
 
 	raft   *raft.Raft
 	logger hclog.Logger
+
+	Logging bool
+	recov   *journey.Log
 }
 
 // New returns a new Store.
@@ -55,10 +61,17 @@ func New(inmem bool) *Store {
 			Level:  hclog.LevelFromString(logLevel),
 			Output: os.Stderr,
 		}),
+		Logging: recovLog,
 	}
 
 	if joinHandlerAddr != "" {
 		s.ListenRaftJoins(joinHandlerAddr)
+	}
+
+	if s.Logging {
+		config := journey.DefaultConfig
+		config.Batch = 100
+		s.recov = journey.New(config, "log-file-"+svrID+".txt")
 	}
 	return s
 }

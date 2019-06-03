@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"journey"
 	"strings"
 
 	"github.com/hashicorp/raft"
@@ -13,6 +14,13 @@ type fsm Store
 
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
+
+	// TODO: Serialize and Deserialize a protobuff instead of JSON for journey logging and
+	// addhoc message format for this cmd interpretation
+	if f.Logging {
+		cmd, _ := serializeInCommand(string(l.Data), l.Index)
+		defer f.recov.Put(cmd)
+	}
 
 	message := string(l.Data)
 	message = strings.TrimSuffix(message, "\n")
@@ -105,3 +113,38 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 }
 
 func (f *fsmSnapshot) Release() {}
+
+func serializeInCommand(requistion string, index uint64) ([]byte, error) {
+
+	lowerCase := strings.ToLower(requistion)
+	lowerCase = strings.TrimSuffix(lowerCase, "\n")
+	content := strings.Split(lowerCase, "-")
+
+	var op journey.Operation
+	cmt := content[2]
+
+	switch content[1] {
+	case "set":
+		op = journey.Set
+		cmt = strings.Join(content[2:4], "-")
+	case "get":
+		op = journey.Get
+	case "delete":
+		op = journey.Delete
+	default:
+		return nil, fmt.Errorf("Failed to serialize command, operation %q not recognized", content[1])
+	}
+
+	cmd := &journey.Command{
+		Id:      index,
+		Ip:      content[0],
+		Op:      op,
+		Comment: cmt,
+	}
+
+	s, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
