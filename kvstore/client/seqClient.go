@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Lz-Gustavo/journey/pb"
+	"github.com/golang/protobuf/proto"
 )
 
 // Info stores the server configuration
@@ -84,6 +86,25 @@ func (client *Info) StartUDP() error {
 func (client *Info) Broadcast(message string) error {
 	for _, v := range client.Svrs {
 		_, err := fmt.Fprint(v, strconv.Itoa(client.Udpport)+"-"+message)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// BroadcastProtobuf sends a serialized command to the cluster
+func (client *Info) BroadcastProtobuf(message *pb.Command, clientUDPPort string) error {
+
+	message.Ip = clientUDPPort
+	serializedMessage, err := proto.Marshal(message)
+	if err != nil {
+		return err
+	}
+	serializedMessage = append(serializedMessage, []byte("\n")...)
+
+	for _, v := range client.Svrs {
+		_, err := v.Write(serializedMessage)
 		if err != nil {
 			return err
 		}

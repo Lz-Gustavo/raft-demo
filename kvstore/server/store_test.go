@@ -5,6 +5,9 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/Lz-Gustavo/journey/pb"
+	"github.com/golang/protobuf/proto"
 )
 
 func TestCreate(t *testing.T) {
@@ -41,7 +44,13 @@ func TestOperations(t *testing.T) {
 	// Simple way to ensure there is a leader.
 	time.Sleep(3 * time.Second)
 
-	if err := s.Propose("set-foo-bar", nil); err != nil {
+	cmd := &pb.Command{
+		Op:    pb.Command_SET,
+		Key:   "foo",
+		Value: "bar",
+	}
+	bytes, _ := proto.Marshal(cmd)
+	if err := s.Propose(bytes, nil, "", false); err != nil {
 		t.Fatalf("failed to set key: %s", err.Error())
 	}
 
@@ -52,7 +61,12 @@ func TestOperations(t *testing.T) {
 		t.Fatalf("key has wrong value: %s", value)
 	}
 
-	if err := s.Propose("delete-foo-bar", nil); err != nil {
+	cmd = &pb.Command{
+		Op:  pb.Command_DELETE,
+		Key: "foo",
+	}
+	bytes, _ = proto.Marshal(cmd)
+	if err := s.Propose(bytes, nil, "", false); err != nil {
 		t.Fatalf("failed to delete key: %s", err.Error())
 	}
 

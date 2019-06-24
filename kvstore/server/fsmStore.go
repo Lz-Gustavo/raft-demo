@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
-	"github.com/Lz-Gustavo/journey"
 	"github.com/Lz-Gustavo/journey/pb"
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/raft"
@@ -17,26 +15,27 @@ type fsm Store
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
 
-	// TODO: Extend protobuffs for command interpretation too, instead of
-	// addhoc message formats
-	if f.Logging {
-		cmd, _ := serializeCommandInProtobuf(string(l.Data), l.Index)
-		defer f.recov.Put(cmd)
+	command := &pb.Command{}
+	err := proto.Unmarshal(l.Data, command)
+	if err != nil {
+		return err
 	}
 
-	message := string(l.Data)
-	message = strings.TrimSuffix(message, "\n")
-	req := strings.Split(message, "-")
+	if f.Logging {
+		command.Id = l.Index
+		serializedCmd, _ := proto.Marshal(command)
+		defer f.recov.Put(serializedCmd)
+	}
 
-	switch req[1] {
-	case "set":
-		return f.applySet(req[2], req[3])
-	case "delete":
-		return f.applyDelete(req[2])
-	case "get":
-		return f.applyGet(req[2])
+	switch command.Op {
+	case pb.Command_SET:
+		return f.applySet(command.Key, command.Value)
+	case pb.Command_DELETE:
+		return f.applyDelete(command.Key)
+	case pb.Command_GET:
+		return f.applyGet(command.Key)
 	default:
-		panic(fmt.Sprintf("unrecognized command op: %s", req[1]))
+		panic(fmt.Sprintf("unrecognized command op: %v", command))
 	}
 }
 
@@ -115,74 +114,3 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 }
 
 func (f *fsmSnapshot) Release() {}
-
-func serializeCommandInJSON(requistion string, index uint64) ([]byte, error) {
-
-	lowerCase := strings.ToLower(requistion)
-	lowerCase = strings.TrimSuffix(lowerCase, "\n")
-	content := strings.Split(lowerCase, "-")
-
-	var op journey.Operation
-	cmt := content[2]
-
-	switch content[1] {
-	case "set":
-		op = journey.Set
-		cmt = strings.Join(content[2:4], "-")
-	case "get":
-		op = journey.Get
-	case "delete":
-		op = journey.Delete
-	default:
-		return nil, fmt.Errorf("Failed to serialize command, operation %q not recognized", content[1])
-	}
-
-	cmd := &journey.Command{
-		Id:      index,
-		Ip:      content[0],
-		Op:      op,
-		Comment: cmt,
-	}
-
-	s, err := json.Marshal(cmd)
-	if err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func serializeCommandInProtobuf(requistion string, index uint64) ([]byte, error) {
-
-	lowerCase := strings.ToLower(requistion)
-	lowerCase = strings.TrimSuffix(lowerCase, "\n")
-	content := strings.Split(lowerCase, "-")
-
-	var op pb.Command_Operation
-	var value string
-	key := content[2]
-
-	switch content[1] {
-	case "set":
-		op = pb.Command_SET
-		value = content[3]
-	case "get":
-		op = pb.Command_GET
-	case "delete":
-		op = pb.Command_DELETE
-	default:
-		return nil, fmt.Errorf("Failed to serialize command, operation %q not recognized", content[1])
-	}
-	cmd := &pb.Command{
-		Id:    index,
-		Ip:    content[0],
-		Op:    op,
-		Key:   key,
-		Value: value,
-	}
-
-	bytes, err := proto.Marshal(cmd)
-	if err != nil {
-		return nil, err
-	}
-	return bytes, nil
-}

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Lz-Gustavo/journey/pb"
 )
 
 type config struct {
@@ -93,13 +95,32 @@ func TestNumMessagesKvstore(b *testing.T) {
 					start = time.Now()
 				}
 
+				var msg *pb.Command
 				switch op {
 				case 0:
-					clients[j].Broadcast(fmt.Sprintf("set-%d-%s\n", rand.Intn(Cfg.numKey), storeValue))
+					msg = &pb.Command{
+						Op:    pb.Command_SET,
+						Key:   strconv.Itoa(rand.Intn(Cfg.numKey)),
+						Value: storeValue,
+					}
+					break
+
 				case 1:
-					clients[j].Broadcast(fmt.Sprintf("get-%d\n", rand.Intn(Cfg.numKey)))
+					msg = &pb.Command{
+						Op:  pb.Command_GET,
+						Key: strconv.Itoa(rand.Intn(Cfg.numKey)),
+					}
+					break
+
 				case 2:
-					clients[j].Broadcast(fmt.Sprintf("delete-%d\n", rand.Intn(Cfg.numKey)))
+					msg = &pb.Command{
+						Op:  pb.Command_DELETE,
+						Key: strconv.Itoa(rand.Intn(Cfg.numKey)),
+					}
+				}
+				err := clients[j].BroadcastProtobuf(msg, strconv.Itoa(clients[j].Udpport))
+				if err != nil {
+					b.Logf("Error: %q, caught while broadcasting message: %v", err.Error(), *msg)
 				}
 
 				repply, err := clients[j].ReadUDP()
@@ -146,13 +167,13 @@ func TestClientTimeKvstore(b *testing.T) {
 
 	clients := make([]*Info, Cfg.numClients, Cfg.numClients)
 	signal := make(chan bool)
-	requests := make(chan string, Cfg.numMessages)
+	requests := make(chan *pb.Command, Cfg.numMessages)
 
-	go generateRequests(requests, signal, Cfg.numKey, storeValue)
+	go generateProtobufRequests(requests, signal, Cfg.numKey, storeValue)
 	go killWorkers(Cfg.execTime, signal)
 
 	for i := 0; i < Cfg.numClients; i++ {
-		go func(j int, requests chan string, kill chan bool) {
+		go func(j int, requests chan *pb.Command, kill chan bool) {
 
 			var err error
 			clients[j], err = New("client-config.toml")
@@ -194,7 +215,10 @@ func TestClientTimeKvstore(b *testing.T) {
 					start = time.Now()
 				}
 
-				clients[j].Broadcast(msg)
+				err := clients[j].BroadcastProtobuf(msg, strconv.Itoa(clients[j].Udpport))
+				if err != nil {
+					b.Logf("Error: %q, caught while broadcasting message: %v", err.Error(), *msg)
+				}
 				repply, err := clients[j].ReadUDP()
 				if err != nil {
 					b.Logf("UDP error: %q, caught repply: %s", err.Error(), repply)
@@ -228,6 +252,40 @@ func generateRequests(reqs chan<- string, signal <-chan bool, numKey int, storeV
 			msg = fmt.Sprintf("get-%d\n", rand.Intn(numKey))
 		case 2:
 			msg = fmt.Sprintf("delete-%d\n", rand.Intn(numKey))
+		}
+
+		select {
+		case reqs <- msg:
+			// ...
+		case <-signal:
+			close(reqs)
+			return
+		}
+	}
+}
+
+func generateProtobufRequests(reqs chan<- *pb.Command, signal <-chan bool, numKey int, storeValue string) {
+	for {
+		var msg *pb.Command
+		op := rand.Intn(3)
+
+		switch op {
+		case 0:
+			msg = &pb.Command{
+				Op:    pb.Command_SET,
+				Key:   strconv.Itoa(rand.Intn(numKey)),
+				Value: storeValue,
+			}
+		case 1:
+			msg = &pb.Command{
+				Op:  pb.Command_GET,
+				Key: strconv.Itoa(rand.Intn(numKey)),
+			}
+		case 2:
+			msg = &pb.Command{
+				Op:  pb.Command_DELETE,
+				Key: strconv.Itoa(rand.Intn(numKey)),
+			}
 		}
 
 		select {

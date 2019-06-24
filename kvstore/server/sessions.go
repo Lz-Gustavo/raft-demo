@@ -5,12 +5,15 @@ import (
 	"io"
 	"net"
 	"strings"
+
+	"github.com/Lz-Gustavo/journey/pb"
+	"github.com/golang/protobuf/proto"
 )
 
 // Session struct which represents each active client session connected
 // on the cluster
 type Session struct {
-	incoming chan string
+	incoming chan *pb.Command
 	outgoing chan string
 	reader   *bufio.Reader
 	writer   *bufio.Writer
@@ -23,7 +26,7 @@ func NewSession(connection net.Conn) *Session {
 	writer := bufio.NewWriter(connection)
 
 	client := &Session{
-		incoming: make(chan string),
+		incoming: make(chan *pb.Command),
 		outgoing: make(chan string),
 		reader:   reader,
 		writer:   writer,
@@ -36,12 +39,18 @@ func NewSession(connection net.Conn) *Session {
 
 func (client *Session) Read() {
 	for {
-		line, err := client.reader.ReadString('\n')
+		line, err := client.reader.ReadBytes('\n')
 		if err == nil && len(line) > 1 {
+			newCommand := &pb.Command{}
+			proto.Unmarshal(line, newCommand)
+
 			ip := client.conn.RemoteAddr().String()
 			ipContent := strings.Split(ip, ":")
-			concat := []string{ipContent[0], line}
-			client.incoming <- strings.Join(concat, ":")
+			concat := []string{ipContent[0], newCommand.Ip}
+
+			newCommand.Ip = strings.Join(concat, ":")
+			client.incoming <- newCommand
+
 		} else if err == io.EOF {
 			return
 		}

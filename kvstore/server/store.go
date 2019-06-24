@@ -80,28 +80,25 @@ func New(inmem bool) *Store {
 // to the application's FSM. Sends an "OK" repply to inform commitment. This procedure applies
 // "Get" requisitions to prevent inconsistent reads (that do not follow total ordering). etcd's
 // issue #741 gives a good explanation about this problem.
-func (s *Store) Propose(msg string, svr *Server) error {
+func (s *Store) Propose(msg []byte, svr *Server, clientIP string, waitForValue bool) error {
 
 	if s.raft.State() != raft.Leader {
 		return nil
 	}
 
-	lowerCase := strings.ToLower(msg)
-	lowerCase = strings.TrimSuffix(lowerCase, "\n")
-	content := strings.Split(lowerCase, "-")
-
-	f := s.raft.Apply([]byte(msg), raftTimeout)
+	f := s.raft.Apply(msg, raftTimeout)
 	err := f.Error()
-
-	if err == nil {
-		if content[1] == "get" {
-			value := f.Response().(string)
-			svr.SendUDP(content[0], value+"\n")
-		} else {
-			svr.SendUDP(content[0], "OK\n")
-		}
+	if err != nil {
+		return err
 	}
-	return err
+
+	if waitForValue {
+		value := f.Response().(string)
+		svr.SendUDP(clientIP, value+"\n")
+	} else {
+		svr.SendUDP(clientIP, "OK\n")
+	}
+	return nil
 }
 
 // testGet returns the value for the given key, just using in unit tests since it results

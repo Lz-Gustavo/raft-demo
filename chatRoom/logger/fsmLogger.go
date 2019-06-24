@@ -18,12 +18,15 @@ type fsm Logger
 
 // Apply proposes a new value to the consensus cluster
 func (s *fsm) Apply(l *raft.Log) interface{} {
-	cmd, err := serializeCommandInProtobuf(string(l.Data), l.Index)
+
+	command := &pb.Command{}
+	err := proto.Unmarshal(l.Data, command)
 	if err != nil {
 		return err
 	}
-	s.recov.Put(cmd)
-	return nil
+	command.Id = l.Index
+	serializedCmd, _ := proto.Marshal(command)
+	return s.recov.Put(serializedCmd)
 }
 
 // Restore stores the key-value store to a previous state.
