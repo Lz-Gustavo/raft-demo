@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"journey"
 	"log"
 	"net"
 	"os"
@@ -22,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Lz-Gustavo/journey"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/raft-boltdb"
 )
@@ -46,11 +46,9 @@ type Store struct {
 	mu sync.Mutex
 	m  map[string]string // The key-value store for the system.
 
-	raft *raft.Raft // The consensus mechanism
-
-	logger *log.Logger // The log of events for monitoring
-
-	recov *journey.Log // The optimized recovery log for raft
+	raft   *raft.Raft   // The consensus mechanism
+	logger *log.Logger  // The log of events for monitoring
+	recov  *journey.Log // The optimized recovery log for raft
 }
 
 // New returns a new Store.
@@ -59,7 +57,7 @@ func New(inmem bool) *Store {
 		m:      make(map[string]string),
 		inmem:  inmem,
 		logger: log.New(os.Stderr, "[store] ", log.LstdFlags),
-		recov:  journey.New("log-file" + strconv.Itoa(os.Getpid()) + ".txt"),
+		recov:  journey.New(journey.DefaultConfig, "log-file"+strconv.Itoa(os.Getpid())+".txt"),
 	}
 }
 
@@ -139,7 +137,7 @@ func (s *Store) Get(key string) (string, error) {
 	defer s.mu.Unlock()
 
 	str := fmt.Sprintf("Get key: %s", key)
-	s.recov.Put(0, journey.Read, str, time.Now().Format(time.Stamp))
+	s.recov.PutFormat(0, journey.Get, str, "", time.Now().Format(time.Stamp))
 
 	return s.m[key], nil
 }
@@ -163,7 +161,7 @@ func (s *Store) Set(key, value string) error {
 	f := s.raft.Apply(b, raftTimeout)
 	if f.Error() == nil {
 		str := fmt.Sprintf("Set key: %s, value: %s", key, value)
-		s.recov.Put(0, journey.Write, str, time.Now().Format(time.Stamp))
+		s.recov.PutFormat(0, journey.Set, str, "", time.Now().Format(time.Stamp))
 	}
 
 	return f.Error()
@@ -187,7 +185,7 @@ func (s *Store) Delete(key string) error {
 	f := s.raft.Apply(b, raftTimeout)
 	if f.Error() == nil {
 		str := fmt.Sprintf("Delete key: %s", key)
-		s.recov.Put(0, journey.Write, str, time.Now().Format(time.Stamp))
+		s.recov.PutFormat(0, journey.Delete, str, "", time.Now().Format(time.Stamp))
 	}
 
 	return f.Error()

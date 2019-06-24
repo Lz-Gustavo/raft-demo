@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"journey"
 	"strings"
 
+	"github.com/Lz-Gustavo/journey"
+	"github.com/Lz-Gustavo/journey/pb"
+	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/raft"
 )
 
@@ -16,7 +18,10 @@ type fsm Logger
 
 // Apply proposes a new value to the consensus cluster
 func (s *fsm) Apply(l *raft.Log) interface{} {
-	cmd, _ := serializeInCommand(string(l.Data), l.Index)
+	cmd, err := serializeCommandInProtobuf(string(l.Data), l.Index)
+	if err != nil {
+		return err
+	}
 	s.recov.Put(cmd)
 	return nil
 }
@@ -31,7 +36,7 @@ func (s *fsm) Snapshot() (raft.FSMSnapshot, error) {
 	return nil, nil
 }
 
-func serializeInCommand(requistion string, index uint64) ([]byte, error) {
+func serializeCommandInJSON(requistion string, index uint64) ([]byte, error) {
 
 	lowerCase := strings.ToLower(requistion)
 	lowerCase = strings.TrimSuffix(lowerCase, "\n")
@@ -64,4 +69,40 @@ func serializeInCommand(requistion string, index uint64) ([]byte, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+func serializeCommandInProtobuf(requistion string, index uint64) ([]byte, error) {
+
+	lowerCase := strings.ToLower(requistion)
+	lowerCase = strings.TrimSuffix(lowerCase, "\n")
+	content := strings.Split(lowerCase, "-")
+
+	var op pb.Command_Operation
+	var value string
+	key := content[2]
+
+	switch content[1] {
+	case "set":
+		op = pb.Command_SET
+		value = content[3]
+	case "get":
+		op = pb.Command_GET
+	case "delete":
+		op = pb.Command_DELETE
+	default:
+		return nil, fmt.Errorf("Failed to serialize command, operation %q not recognized", content[1])
+	}
+	cmd := &pb.Command{
+		Id:    index,
+		Ip:    content[0],
+		Op:    op,
+		Key:   key,
+		Value: value,
+	}
+
+	bytes, err := proto.Marshal(cmd)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }

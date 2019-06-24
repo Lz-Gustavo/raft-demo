@@ -3,13 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"journey"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/Lz-Gustavo/journey"
 	"github.com/hashicorp/raft"
 )
 

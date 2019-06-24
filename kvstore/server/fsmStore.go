@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/Lz-Gustavo/journey"
+	"github.com/Lz-Gustavo/journey/pb"
+	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/raft"
 )
 
@@ -15,10 +17,10 @@ type fsm Store
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
 
-	// TODO: Serialize and Deserialize a protobuff instead of JSON for journey logging and
-	// addhoc message format for this cmd interpretation
+	// TODO: Extend protobuffs for command interpretation too, instead of
+	// addhoc message formats
 	if f.Logging {
-		cmd, _ := serializeInCommand(string(l.Data), l.Index)
+		cmd, _ := serializeCommandInProtobuf(string(l.Data), l.Index)
 		defer f.recov.Put(cmd)
 	}
 
@@ -114,7 +116,7 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 
 func (f *fsmSnapshot) Release() {}
 
-func serializeInCommand(requistion string, index uint64) ([]byte, error) {
+func serializeCommandInJSON(requistion string, index uint64) ([]byte, error) {
 
 	lowerCase := strings.ToLower(requistion)
 	lowerCase = strings.TrimSuffix(lowerCase, "\n")
@@ -147,4 +149,40 @@ func serializeInCommand(requistion string, index uint64) ([]byte, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+func serializeCommandInProtobuf(requistion string, index uint64) ([]byte, error) {
+
+	lowerCase := strings.ToLower(requistion)
+	lowerCase = strings.TrimSuffix(lowerCase, "\n")
+	content := strings.Split(lowerCase, "-")
+
+	var op pb.Command_Operation
+	var value string
+	key := content[2]
+
+	switch content[1] {
+	case "set":
+		op = pb.Command_SET
+		value = content[3]
+	case "get":
+		op = pb.Command_GET
+	case "delete":
+		op = pb.Command_DELETE
+	default:
+		return nil, fmt.Errorf("Failed to serialize command, operation %q not recognized", content[1])
+	}
+	cmd := &pb.Command{
+		Id:    index,
+		Ip:    content[0],
+		Op:    op,
+		Key:   key,
+		Value: value,
+	}
+
+	bytes, err := proto.Marshal(cmd)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }
