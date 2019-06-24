@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"journey"
 	"log"
 	"net"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Lz-Gustavo/journey"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 )

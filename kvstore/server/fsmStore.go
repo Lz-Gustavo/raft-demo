@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"journey"
 	"strings"
 
+	"github.com/Lz-Gustavo/journey"
 	"github.com/hashicorp/raft"
 )
 
