@@ -7,16 +7,13 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/Lz-Gustavo/journey/pb"
-	"github.com/golang/protobuf/proto"
 )
 
 // Server stores the state between every client
 type Server struct {
 	clients  []*Session
 	joins    chan net.Conn
-	incoming chan *pb.Command
+	incoming chan *Request
 
 	req     uint64
 	kvstore *Store
@@ -27,7 +24,7 @@ func NewServer(s *Store) *Server {
 	svr := &Server{
 		clients:  make([]*Session, 0),
 		joins:    make(chan net.Conn),
-		incoming: make(chan *pb.Command),
+		incoming: make(chan *Request),
 		req:      0,
 		kvstore:  s,
 	}
@@ -64,17 +61,10 @@ func (svr *Server) SendUDP(addr string, message string) {
 
 // HandleRequest handles the client requistion, checking if it matches the right syntax
 // before proposing it to the FSM
-func (svr *Server) HandleRequest(cmd *pb.Command) {
+func (svr *Server) HandleRequest(cmd *Request) {
 
-	msg, err := proto.Marshal(cmd)
-	if err != nil {
-		svr.kvstore.logger.Warn(fmt.Sprintf("Operation: %q not recognized", *cmd))
-		svr.Broadcast("404-cmd not found\n")
-	}
-	data := bytes.TrimSuffix(msg, []byte("\n"))
-
-	valueInResponse := (cmd.Op == pb.Command_GET)
-	if err := svr.kvstore.Propose(data, svr, cmd.Ip, valueInResponse); err != nil {
+	data := bytes.TrimSuffix(cmd.Command, []byte("\n"))
+	if err := svr.kvstore.Propose(data, svr, cmd.Ip); err != nil {
 		svr.kvstore.logger.Error(fmt.Sprintf("Failed to propose message: %q, error: %s\n", data, err.Error()))
 	}
 	atomic.AddUint64(&svr.req, 1)

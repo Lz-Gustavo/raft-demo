@@ -36,6 +36,7 @@ func NewLogger() *Logger {
 
 	config := journey.DefaultConfig
 	config.Batch = 100
+	config.Class = journey.Serialized
 
 	log := &Logger{
 		log:   log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Lz-Gustavo/journey/pb"
 	"github.com/golang/protobuf/proto"
@@ -29,11 +30,11 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 
 	switch command.Op {
 	case pb.Command_SET:
-		return f.applySet(command.Key, command.Value)
+		return strings.Join([]string{command.Ip, f.applySet(command.Key, command.Value)}, "-")
 	case pb.Command_DELETE:
-		return f.applyDelete(command.Key)
+		return strings.Join([]string{command.Ip, f.applyDelete(command.Key)}, "-")
 	case pb.Command_GET:
-		return f.applyGet(command.Key)
+		return strings.Join([]string{command.Ip, f.applyGet(command.Key)}, "-")
 	default:
 		panic(fmt.Sprintf("unrecognized command op: %v", command))
 	}
@@ -65,21 +66,21 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 	return nil
 }
 
-func (f *fsm) applySet(key, value string) interface{} {
+func (f *fsm) applySet(key, value string) string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.m[key] = value
-	return nil
+	return ""
 }
 
-func (f *fsm) applyDelete(key string) interface{} {
+func (f *fsm) applyDelete(key string) string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.m, key)
-	return nil
+	return ""
 }
 
-func (f *fsm) applyGet(key string) interface{} {
+func (f *fsm) applyGet(key string) string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.m[key]

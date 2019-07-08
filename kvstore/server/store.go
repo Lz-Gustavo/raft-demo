@@ -71,6 +71,7 @@ func New(inmem bool) *Store {
 	if s.Logging {
 		config := journey.DefaultConfig
 		config.Batch = 100
+		config.Class = journey.Serialized
 		s.recov = journey.New(config, "log-file-"+svrID+".txt")
 	}
 	return s
@@ -80,7 +81,7 @@ func New(inmem bool) *Store {
 // to the application's FSM. Sends an "OK" repply to inform commitment. This procedure applies
 // "Get" requisitions to prevent inconsistent reads (that do not follow total ordering). etcd's
 // issue #741 gives a good explanation about this problem.
-func (s *Store) Propose(msg []byte, svr *Server, clientIP string, waitForValue bool) error {
+func (s *Store) Propose(msg []byte, svr *Server, clientIP string) error {
 
 	if s.raft.State() != raft.Leader {
 		return nil
@@ -92,11 +93,16 @@ func (s *Store) Propose(msg []byte, svr *Server, clientIP string, waitForValue b
 		return err
 	}
 
-	if waitForValue {
-		value := f.Response().(string)
-		svr.SendUDP(clientIP, value+"\n")
-	} else {
-		svr.SendUDP(clientIP, "OK\n")
+	switch f.Response().(type) {
+	case string:
+		response := strings.Split(f.Response().(string), "-")
+		udpAddr := strings.Join([]string{clientIP, ":", response[0]}, "")
+		clientRepply := strings.Join([]string{"OK: ", response[1], "\n"}, "")
+		svr.SendUDP(udpAddr, clientRepply)
+		break
+
+	default:
+		return fmt.Errorf("Unrecognized data response %q", f.Response())
 	}
 	return nil
 }
