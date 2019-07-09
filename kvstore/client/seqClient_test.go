@@ -16,13 +16,14 @@ import (
 )
 
 var (
-	oneTweet = strings.Repeat("@", 128)
-	oneKB    = strings.Repeat("@", 1000)
-	fourKB   = strings.Repeat("@", 4000)
+	dataChoice int
+	oneTweet   = strings.Repeat("@", 128)  // dataChoice == 0
+	oneKB      = strings.Repeat("@", 1000) // dataChoice == 1
+	fourKB     = strings.Repeat("@", 4000) // dataChoice == 2
 )
 
 // Value to be store on the hashmap.
-var storeValue = oneKB
+var storeValue string
 
 const (
 	// One client has a '1/measureThroughput' chance to capture the latency of it's next requisition.
@@ -47,6 +48,20 @@ func init() {
 	flag.IntVar(&Cfg.numMessages, "req", 0, "Set the number of sent requisitions by each client")
 	flag.IntVar(&Cfg.numKey, "key", 0, "Set the number of differente keys for hash set")
 	flag.Int64Var(&Cfg.execTime, "time", 0, "Set the execution time of the experiment")
+
+	flag.IntVar(&dataChoice, "data", 0, "Choose the size of the stored value in the KV storage ('0' = 128B, '1' = 1KB, '2' = 4KB)")
+	switch dataChoice {
+	case 0:
+		storeValue = oneTweet
+		break
+	case 1:
+		storeValue = oneKB
+		break
+	case 2:
+		storeValue = fourKB
+	default:
+		log.Fatalln("Must specify a valid option in '-data' argument ('0' = 128B, '1' = 1KB, '2' = 4KB)")
+	}
 }
 
 func TestNumMessagesKvstore(b *testing.T) {

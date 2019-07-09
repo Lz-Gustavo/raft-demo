@@ -40,7 +40,7 @@ func NewLogger() *Logger {
 
 	log := &Logger{
 		log:   log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
-		recov: journey.New(config, "log-file-"+logID+".txt"),
+		recov: journey.New(config, *logfolder+"log-file-"+logID+".txt"),
 	}
 	return log
 }
@@ -87,10 +87,14 @@ var logID string
 var raftAddr string
 var joinAddr string
 
+var logfolder *string
+
 func init() {
 	flag.StringVar(&logID, "id", "", "Set the logger unique ID")
 	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
 	flag.StringVar(&joinAddr, "join", ":13000", "Set join address to an already configured raft node")
+
+	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder using Journey")
 }
 
 func main() {
