@@ -7,11 +7,29 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Lz-Gustavo/journey/pb"
+)
+
+var (
+	oneTweet = strings.Repeat("@", 128)
+	oneKB    = strings.Repeat("@", 1000)
+	fourKB   = strings.Repeat("@", 4000)
+)
+
+// Value to be store on the hashmap.
+var storeValue = oneKB
+
+const (
+	// One client has a '1/measureThroughput' chance to capture the latency of it's next requisition.
+	measureThroughput int = 100
+
+	// Just the 'watcherIndex'th client will be recording latency based on 'measureThroughput'.
+	watcherIndex int = 0
 )
 
 type config struct {
@@ -22,8 +40,6 @@ type config struct {
 }
 
 var Cfg *config
-
-const storeValue = "@@@@@"
 
 func init() {
 	Cfg = new(config)
@@ -39,7 +55,6 @@ func TestNumMessagesKvstore(b *testing.T) {
 	if Cfg.numClients == 0 || Cfg.numMessages == 0 || Cfg.numKey == 0 {
 		b.Fatal("Must define a number of clients/messages/diff keys > zero")
 	}
-	measureThroughput := 50
 
 	configBarrier := new(sync.WaitGroup)
 	configBarrier.Add(Cfg.numClients)
@@ -58,6 +73,8 @@ func TestNumMessagesKvstore(b *testing.T) {
 
 	for i := 0; i < Cfg.numClients; i++ {
 		go func(j int) {
+
+			chosenClient := j == watcherIndex
 
 			var err error
 			clients[j], err = New("client-config.toml")
@@ -89,10 +106,12 @@ func TestNumMessagesKvstore(b *testing.T) {
 			for k := 0; k < Cfg.numMessages; k++ {
 
 				op = rand.Intn(3)
-				coinThroughtput = rand.Intn(measureThroughput)
-				if coinThroughtput == 0 {
-					flagStopwatch = true
-					start = time.Now()
+				if chosenClient {
+					coinThroughtput = rand.Intn(measureThroughput)
+					if coinThroughtput == 0 {
+						flagStopwatch = true
+						start = time.Now()
+					}
 				}
 
 				var msg *pb.Command
@@ -150,7 +169,6 @@ func TestClientTimeKvstore(b *testing.T) {
 	if Cfg.numClients == 0 || Cfg.execTime == 0 || Cfg.numKey == 0 {
 		b.Fatal("Must define a number of clients/execTime/diff keys > zero")
 	}
-	measureThroughput := 50
 
 	configBarrier := new(sync.WaitGroup)
 	configBarrier.Add(Cfg.numClients)
@@ -174,6 +192,8 @@ func TestClientTimeKvstore(b *testing.T) {
 
 	for i := 0; i < Cfg.numClients; i++ {
 		go func(j int, requests chan *pb.Command, kill chan bool) {
+
+			chosenClient := j == watcherIndex
 
 			var err error
 			clients[j], err = New("client-config.toml")
@@ -209,10 +229,12 @@ func TestClientTimeKvstore(b *testing.T) {
 					return
 				}
 
-				coinThroughtput = rand.Intn(measureThroughput)
-				if coinThroughtput == 0 {
-					flagStopwatch = true
-					start = time.Now()
+				if chosenClient {
+					coinThroughtput = rand.Intn(measureThroughput)
+					if coinThroughtput == 0 {
+						flagStopwatch = true
+						start = time.Now()
+					}
 				}
 
 				err := clients[j].BroadcastProtobuf(msg, strconv.Itoa(clients[j].Udpport))
