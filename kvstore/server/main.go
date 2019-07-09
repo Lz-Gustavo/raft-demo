@@ -17,7 +17,7 @@ var raftAddr string
 var joinAddr string
 var joinHandlerAddr string
 
-var cpuprofile, memprofile *string
+var cpuprofile, memprofile, logfolder *string
 
 func init() {
 	flag.StringVar(&svrID, "id", "", "Set server unique ID")
@@ -28,6 +28,7 @@ func init() {
 
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to a file")
 	memprofile = flag.String("memprofile", "", "write memory profile to a file")
+	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder using Journey")
 }
 
 func main() {

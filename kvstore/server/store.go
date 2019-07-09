@@ -20,8 +20,6 @@ const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
-
-	recovLog = false
 )
 
 // Custom configuration over default for testing
@@ -61,18 +59,18 @@ func New(inmem bool) *Store {
 			Level:  hclog.LevelFromString(logLevel),
 			Output: os.Stderr,
 		}),
-		Logging: recovLog,
 	}
 
 	if joinHandlerAddr != "" {
 		s.ListenRaftJoins(joinHandlerAddr)
 	}
 
-	if s.Logging {
+	if *logfolder != "" {
+		s.Logging = true
 		config := journey.DefaultConfig
 		config.Batch = 100
 		config.Class = journey.Serialized
-		s.recov = journey.New(config, "log-file-"+svrID+".txt")
+		s.recov = journey.New(config, *logfolder+"log-file-"+svrID+".txt")
 	}
 	return s
 }
