@@ -50,7 +50,7 @@ func TestOperations(t *testing.T) {
 		Value: "bar",
 	}
 	bytes, _ := proto.Marshal(cmd)
-	if err := s.Propose(bytes, nil, "", false); err != nil {
+	if err := s.Propose(bytes, nil, ""); err != nil {
 		t.Fatalf("failed to set key: %s", err.Error())
 	}
 
@@ -66,7 +66,7 @@ func TestOperations(t *testing.T) {
 		Key: "foo",
 	}
 	bytes, _ = proto.Marshal(cmd)
-	if err := s.Propose(bytes, nil, "", false); err != nil {
+	if err := s.Propose(bytes, nil, ""); err != nil {
 		t.Fatalf("failed to delete key: %s", err.Error())
 	}
 

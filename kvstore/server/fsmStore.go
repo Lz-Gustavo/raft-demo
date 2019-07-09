@@ -42,9 +42,6 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 
 // Snapshot returns a snapshot of the key-value store.
 func (f *fsm) Snapshot() (raft.FSMSnapshot, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
 	// Clone the map.
 	o := make(map[string]string)
 	for k, v := range f.m {
@@ -66,23 +63,19 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 	return nil
 }
 
+// NOTE: There s no need for mutex acquisition since every new command is garantee to be
+// executed in a sequential manner, preserving the replicas coordination.
 func (f *fsm) applySet(key, value string) string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.m[key] = value
 	return ""
 }
 
 func (f *fsm) applyDelete(key string) string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	delete(f.m, key)
 	return ""
 }
 
 func (f *fsm) applyGet(key string) string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	return f.m[key]
 }
 
