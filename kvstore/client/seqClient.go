@@ -164,7 +164,7 @@ func (client *Info) Shutdown() {
 var configFilename *string
 
 func init() {
-	configFilename = flag.String("config", "", "Filepath to toml file")
+	configFilename = flag.String("config", "client-config.toml", "Filepath to toml file")
 }
 
 func main() {

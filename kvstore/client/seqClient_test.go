@@ -34,6 +34,7 @@ const (
 )
 
 type config struct {
+	mustLog     bool
 	numKey      int
 	numClients  int
 	numMessages int
@@ -48,6 +49,7 @@ func init() {
 	flag.IntVar(&Cfg.numMessages, "req", 0, "Set the number of sent requisitions by each client")
 	flag.IntVar(&Cfg.numKey, "key", 0, "Set the number of differente keys for hash set")
 	flag.Int64Var(&Cfg.execTime, "time", 0, "Set the execution time of the experiment")
+	flag.BoolVar(&Cfg.mustLog, "log", true, "Set if this client execution will generate latency logs (0: false; 1: true)")
 
 	flag.IntVar(&dataChoice, "data", 0, "Choose the size of the stored value in the KV storage ('0' = 128B, '1' = 1KB, '2' = 4KB)")
 	switch dataChoice {
@@ -66,6 +68,7 @@ func init() {
 
 func TestNumMessagesKvstore(b *testing.T) {
 
+	b.Parallel()
 	flag.Parse()
 	if Cfg.numClients == 0 || Cfg.numMessages == 0 || Cfg.numKey == 0 {
 		b.Fatal("Must define a number of clients/messages/diff keys > zero")
@@ -77,12 +80,15 @@ func TestNumMessagesKvstore(b *testing.T) {
 	finishedBarrier := new(sync.WaitGroup)
 	finishedBarrier.Add(Cfg.numClients)
 
-	outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		b.Fatalf("could not open log file: %s\n", err.Error())
+	var logger *log.Logger
+	if Cfg.mustLog {
+		outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			b.Fatalf("could not open log file: %s\n", err.Error())
+		}
+		defer outFile.Close()
+		logger = log.New(outFile, "", 0)
 	}
-	defer outFile.Close()
-	logger := log.New(outFile, "", 0)
 
 	clients := make([]*Info, Cfg.numClients, Cfg.numClients)
 
@@ -92,7 +98,7 @@ func TestNumMessagesKvstore(b *testing.T) {
 			chosenClient := j == watcherIndex
 
 			var err error
-			clients[j], err = New("client-config.toml")
+			clients[j], err = New(*configFilename)
 			if err != nil {
 				b.Fatalf("failed to find config: %s", err.Error())
 			}
@@ -121,7 +127,7 @@ func TestNumMessagesKvstore(b *testing.T) {
 			for k := 0; k < Cfg.numMessages; k++ {
 
 				op = rand.Intn(3)
-				if chosenClient {
+				if chosenClient && Cfg.mustLog {
 					coinThroughtput = rand.Intn(measureThroughput)
 					if coinThroughtput == 0 {
 						flagStopwatch = true
@@ -161,6 +167,7 @@ func TestNumMessagesKvstore(b *testing.T) {
 				if err != nil {
 					b.Logf("UDP error: %q, caught repply: %s", err.Error(), repply)
 				}
+
 				if flagStopwatch {
 					finish = int64(time.Since(start) / time.Nanosecond)
 					b.Log(finish)
@@ -180,6 +187,7 @@ func TestNumMessagesKvstore(b *testing.T) {
 
 func TestClientTimeKvstore(b *testing.T) {
 
+	b.Parallel()
 	flag.Parse()
 	if Cfg.numClients == 0 || Cfg.execTime == 0 || Cfg.numKey == 0 {
 		b.Fatal("Must define a number of clients/execTime/diff keys > zero")
@@ -191,12 +199,15 @@ func TestClientTimeKvstore(b *testing.T) {
 	finishedBarrier := new(sync.WaitGroup)
 	finishedBarrier.Add(Cfg.numClients)
 
-	outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		b.Fatalf("could not open log file: %s\n", err.Error())
+	var logger *log.Logger
+	if Cfg.mustLog {
+		outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			b.Fatalf("could not open log file: %s\n", err.Error())
+		}
+		defer outFile.Close()
+		logger = log.New(outFile, "", 0)
 	}
-	defer outFile.Close()
-	logger := log.New(outFile, "", 0)
 
 	clients := make([]*Info, Cfg.numClients, Cfg.numClients)
 	signal := make(chan bool)
@@ -211,7 +222,7 @@ func TestClientTimeKvstore(b *testing.T) {
 			chosenClient := j == watcherIndex
 
 			var err error
-			clients[j], err = New("client-config.toml")
+			clients[j], err = New(*configFilename)
 			if err != nil {
 				b.Fatalf("failed to find config: %s", err.Error())
 			}
@@ -244,7 +255,7 @@ func TestClientTimeKvstore(b *testing.T) {
 					return
 				}
 
-				if chosenClient {
+				if chosenClient && Cfg.mustLog {
 					coinThroughtput = rand.Intn(measureThroughput)
 					if coinThroughtput == 0 {
 						flagStopwatch = true
@@ -260,6 +271,7 @@ func TestClientTimeKvstore(b *testing.T) {
 				if err != nil {
 					b.Logf("UDP error: %q, caught repply: %s", err.Error(), repply)
 				}
+
 				if flagStopwatch {
 					finish = int64(time.Since(start) / time.Nanosecond)
 					b.Log(finish)
