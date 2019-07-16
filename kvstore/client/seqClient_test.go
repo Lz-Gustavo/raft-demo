@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -95,6 +96,8 @@ func TestNumMessagesKvstore(b *testing.T) {
 	for i := 0; i < Cfg.numClients; i++ {
 		go func(j int) {
 
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
 			chosenClient := j == watcherIndex
 
 			var err error
@@ -174,6 +177,11 @@ func TestNumMessagesKvstore(b *testing.T) {
 					logger.Println(finish)
 					flagStopwatch = false
 				}
+
+				thinkTime := clients[j].ThinkingTimeMsec
+				if thinkTime > 0 {
+					time.Sleep(time.Duration(rand.Intn(thinkTime+1)) * time.Millisecond)
+				}
 			}
 			finishedBarrier.Done()
 		}(i)
@@ -219,6 +227,8 @@ func TestClientTimeKvstore(b *testing.T) {
 	for i := 0; i < Cfg.numClients; i++ {
 		go func(j int, requests chan *pb.Command, kill chan bool) {
 
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
 			chosenClient := j == watcherIndex
 
 			var err error
@@ -278,6 +288,11 @@ func TestClientTimeKvstore(b *testing.T) {
 					logger.Println(finish)
 					flagStopwatch = false
 				}
+
+				thinkTime := clients[j].ThinkingTimeMsec
+				if thinkTime > 0 {
+					time.Sleep(time.Duration(rand.Intn(thinkTime+1)) * time.Millisecond)
+				}
 			}
 
 		}(i, requests, signal)
@@ -290,6 +305,9 @@ func TestClientTimeKvstore(b *testing.T) {
 }
 
 func generateRequests(reqs chan<- string, signal <-chan bool, numKey int, storeValue string) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	for {
 		var msg string
 		op := rand.Intn(3)
@@ -314,6 +332,9 @@ func generateRequests(reqs chan<- string, signal <-chan bool, numKey int, storeV
 }
 
 func generateProtobufRequests(reqs chan<- *pb.Command, signal <-chan bool, numKey int, storeValue string) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	for {
 		var msg *pb.Command
 		op := rand.Intn(3)

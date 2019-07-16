@@ -26,6 +26,8 @@ type Info struct {
 	Localip  string
 	Udpport  int
 	receiver *net.UDPConn
+
+	ThinkingTimeMsec int
 }
 
 // New instatiates a new sequential client config struct from toml file.
