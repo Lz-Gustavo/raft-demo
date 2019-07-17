@@ -24,6 +24,10 @@ This repository organizes some demo applications using [hashicorp's Go implement
 	
 	[Otoolep's](https://github.com/otoolep/hraftd) reference example of hashicorp raft, intially logging committed messages using Journey.
 
+* **diskstorage**
+	
+	[IN PROGRESS] A persistent storage application. Applies received "get", "set" and "delete" operations on a regular file following a calculated offset, simply defined by (key * storeValueOffset). Uses the same logic from **kvstore** application, except it's storage and FSM implementation.
+
 ## Usage
 
 **chatRoom and kvstore** 
@@ -87,6 +91,8 @@ delete-[key]
 * **[DONE]** Starting from [latest commmit](https://github.com/Lz-Gustavo/raft-demo/commit/f5d60037a364a8029bed4e3e84327b62a215ec45), project building is temporarily unavaiable due to Journey package dependency.
 
 * **[DONE]** [Protocol Buffers](https://developers.google.com/protocol-buffers/) are going to be implemented for a faster serialize/deserialization of commands by **kvstore** application.
+
+* **[ISSUE]** Eliminate bad dependency copying of **kvstore** by the **diskstorage** application.
 
 ## License
 [MPL 2.0](https://www.mozilla.org/en-US/MPL/2.0/)

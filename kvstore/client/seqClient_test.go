@@ -19,8 +19,8 @@ import (
 var (
 	dataChoice int
 	oneTweet   = strings.Repeat("@", 128)  // dataChoice == 0
-	oneKB      = strings.Repeat("@", 1000) // dataChoice == 1
-	fourKB     = strings.Repeat("@", 4000) // dataChoice == 2
+	oneKB      = strings.Repeat("@", 1024) // dataChoice == 1
+	fourKB     = strings.Repeat("@", 4096) // dataChoice == 2
 )
 
 // Value to be store on the hashmap.
