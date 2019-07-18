@@ -52,7 +52,9 @@ type Store struct {
 	recov   *journey.Log
 
 	Local      *os.File
-	valueSize  int32
+	valueSize  int
+	storeValue []byte
+
 	batchSync  uint32
 	writeCount uint32
 }
@@ -69,6 +71,7 @@ func New(storeFilename string) (*Store, error) {
 			Output: os.Stderr,
 		}),
 	}
+	s.storeValue = []byte(strings.Repeat("@", s.valueSize))
 
 	var err error
 	if _, exists := os.Stat(storeFilename); exists == nil {

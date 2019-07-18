@@ -11,6 +11,10 @@ import (
 	"runtime/pprof"
 )
 
+const (
+	stateFilename = "store4kb.txt"
+)
+
 var svrID string
 var svrPort string
 var raftAddr string
@@ -51,7 +55,7 @@ func main() {
 	}
 
 	// Initialize the Key-value store
-	kvs, err := New("state.txt")
+	kvs, err := New(stateFilename)
 	if err != nil {
 		log.Fatalf("Failed to start storage: %s", err.Error())
 	}

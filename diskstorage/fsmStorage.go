@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/Lz-Gustavo/journey/pb"
@@ -53,7 +54,16 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 // executed in a sequential manner, preserving the replicas coordination.
 func (f *fsm) applySet(key, value string) string {
 
-	// TODO: write content to Local file
+	pos, err := strconv.Atoi(key)
+	if err != nil {
+		panic(fmt.Sprintf("Could not interpret specified key value %q", key))
+	}
+	stride := int64(f.valueSize * pos)
+
+	_, err = f.Local.WriteAt(f.storeValue, stride)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	f.writeCount++
 	if f.writeCount == f.batchSync {
@@ -65,16 +75,40 @@ func (f *fsm) applySet(key, value string) string {
 
 func (f *fsm) applyDelete(key string) string {
 
-	// TODO: write blank content to local file
+	pos, err := strconv.Atoi(key)
+	if err != nil {
+		panic(fmt.Sprintf("Could not interpret specified key value %q", key))
+	}
+	stride := int64(f.valueSize * pos)
 
+	blankContent := []byte(strings.Repeat(" ", f.valueSize))
+	_, err = f.Local.WriteAt(blankContent, stride)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	f.writeCount++
+	if f.writeCount == f.batchSync {
+		f.Local.Sync()
+		f.writeCount = 0
+	}
 	return ""
 }
 
 func (f *fsm) applyGet(key string) string {
 
-	// TODO: read content from local file
+	pos, err := strconv.Atoi(key)
+	if err != nil {
+		panic(fmt.Sprintf("Could not interpret specified key value %q", key))
+	}
+	stride := int64(f.valueSize * pos)
 
-	return ""
+	content := make([]byte, f.valueSize, f.valueSize)
+	_, err = f.Local.ReadAt(content, stride)
+	if err != nil {
+		panic(err.Error())
+	}
+	return string(content)
 }
 
 type fsmSnapshot struct {
