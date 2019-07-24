@@ -20,6 +20,7 @@ const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
+	compressValues      = false
 )
 
 // Custom configuration over default for testing
@@ -37,6 +38,7 @@ type Store struct {
 	RaftDir  string
 	RaftBind string
 	inmem    bool
+	compress bool
 
 	mu sync.Mutex
 	m  map[string]string
@@ -52,8 +54,9 @@ type Store struct {
 func New(inmem bool) *Store {
 
 	s := &Store{
-		m:     make(map[string]string),
-		inmem: inmem,
+		m:        make(map[string]string),
+		inmem:    inmem,
+		compress: compressValues,
 		logger: hclog.New(&hclog.LoggerOptions{
 			Name:   "store",
 			Level:  hclog.LevelFromString(logLevel),

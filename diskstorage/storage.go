@@ -27,7 +27,7 @@ const (
 	logLevel            = "ERROR"
 
 	fileBatchSync     = 100
-	storeValuesOffset = fourKB
+	storeValuesOffset = oneTweet
 )
 
 // Custom configuration over default for testing

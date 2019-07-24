@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
 
 	"github.com/Lz-Gustavo/journey/pb"
@@ -66,7 +70,19 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 // NOTE: There s no need for mutex acquisition since every new command is garantee to be
 // executed in a sequential manner, preserving the replicas coordination.
 func (f *fsm) applySet(key, value string) string {
-	f.m[key] = value
+	if !f.compress {
+		f.m[key] = value
+		return ""
+	}
+
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	gz.Write([]byte(value))
+	if err := gz.Close(); err != nil {
+		panic(err)
+	}
+
+	f.m[key] = base64.StdEncoding.EncodeToString(b.Bytes())
 	return ""
 }
 
@@ -76,7 +92,19 @@ func (f *fsm) applyDelete(key string) string {
 }
 
 func (f *fsm) applyGet(key string) string {
-	return f.m[key]
+	value, ok := f.m[key]
+	if !ok {
+		return ""
+	}
+	if !f.compress {
+		return f.m[key]
+	}
+
+	data, _ := base64.StdEncoding.DecodeString(value)
+	reader := bytes.NewReader(data)
+	readerGzip, _ := gzip.NewReader(reader)
+	bytes, _ := ioutil.ReadAll(readerGzip)
+	return string(bytes)
 }
 
 type fsmSnapshot struct {
