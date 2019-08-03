@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	stateFilename = "store1gb.txt"
+	stateFilename = "/tmp/store1gb.txt"
 )
 
 var svrID string

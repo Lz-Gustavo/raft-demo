@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,10 +34,10 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	switch command.Op {
 	case pb.Command_SET:
 		return strings.Join([]string{command.Ip, f.applySet(command.Key, command.Value)}, "-")
-	case pb.Command_DELETE:
-		return strings.Join([]string{command.Ip, f.applyDelete(command.Key)}, "-")
 	case pb.Command_GET:
 		return strings.Join([]string{command.Ip, f.applyGet(command.Key)}, "-")
+	// case pb.Command_DELETE:
+	// 	return strings.Join([]string{command.Ip, f.applyDelete(command.Key)}, "-")
 	default:
 		panic(fmt.Sprintf("unrecognized command op: %v", command))
 	}
@@ -47,7 +46,7 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 // Snapshot returns a snapshot of the key-value store.
 func (f *fsm) Snapshot() (raft.FSMSnapshot, error) {
 	// Clone the map.
-	o := make(map[string]string)
+	o := make(map[string][]byte)
 	for k, v := range f.m {
 		o[k] = v
 	}
@@ -56,7 +55,7 @@ func (f *fsm) Snapshot() (raft.FSMSnapshot, error) {
 
 // Restore stores the key-value store to a previous state.
 func (f *fsm) Restore(rc io.ReadCloser) error {
-	o := make(map[string]string)
+	o := make(map[string][]byte)
 	if err := json.NewDecoder(rc).Decode(&o); err != nil {
 		return err
 	}
@@ -71,44 +70,53 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 // executed in a sequential manner, preserving the replicas coordination.
 func (f *fsm) applySet(key, value string) string {
 	if !f.compress {
-		f.m[key] = value
+		f.m[key] = []byte(value)
 		return ""
 	}
 
-	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
-	gz.Write([]byte(value))
-	if err := gz.Close(); err != nil {
+	f.gzipBuffer.Reset()
+	wtr := gzip.NewWriter(&f.gzipBuffer)
+	wtr.Write([]byte(value))
+
+	if err := wtr.Flush(); err != nil {
+		panic(err)
+	}
+	if err := wtr.Close(); err != nil {
 		panic(err)
 	}
 
-	f.m[key] = base64.StdEncoding.EncodeToString(b.Bytes())
+	f.m[key] = f.gzipBuffer.Bytes()
 	return ""
 }
 
-func (f *fsm) applyDelete(key string) string {
-	delete(f.m, key)
-	return ""
-}
+// func (f *fsm) applyDelete(key string) string {
+// 	delete(f.m, key)
+// 	return ""
+// }
 
+// NOTE: pre-initalization of gzipReader on fsm store is not viable option, because necessary
+// Close() calls from write method will imediately dealloc the f.Reader attribute. This closure
+// is necessary to prevent io.ErrUnexpectedEOF
 func (f *fsm) applyGet(key string) string {
 	value, ok := f.m[key]
 	if !ok {
 		return ""
 	}
 	if !f.compress {
-		return f.m[key]
+		return string(f.m[key])
 	}
 
-	data, _ := base64.StdEncoding.DecodeString(value)
-	reader := bytes.NewReader(data)
-	readerGzip, _ := gzip.NewReader(reader)
+	f.gzipBuffer.Reset()
+	rdr := bytes.NewReader(value)
+	readerGzip, _ := gzip.NewReader(rdr)
 	bytes, _ := ioutil.ReadAll(readerGzip)
+	readerGzip.Close()
+
 	return string(bytes)
 }
 
 type fsmSnapshot struct {
-	store map[string]string
+	store map[string][]byte
 }
 
 func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
@@ -123,11 +131,8 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 		if _, err := sink.Write(b); err != nil {
 			return err
 		}
-
-		// Close the sink.
 		return sink.Close()
 	}()
-
 	if err != nil {
 		sink.Cancel()
 	}

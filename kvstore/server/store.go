@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"net"
@@ -20,7 +21,7 @@ const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
-	compressValues      = false
+	compressValues      = true
 )
 
 // Custom configuration over default for testing
@@ -38,23 +39,25 @@ type Store struct {
 	RaftDir  string
 	RaftBind string
 	inmem    bool
-	compress bool
 
 	mu sync.Mutex
-	m  map[string]string
+	m  map[string][]byte
 
 	raft   *raft.Raft
 	logger hclog.Logger
 
 	Logging bool
 	recov   *journey.Log
+
+	compress   bool
+	gzipBuffer bytes.Buffer
 }
 
 // New returns a new Store.
 func New(inmem bool) *Store {
 
 	s := &Store{
-		m:        make(map[string]string),
+		m:        make(map[string][]byte),
 		inmem:    inmem,
 		compress: compressValues,
 		logger: hclog.New(&hclog.LoggerOptions{
@@ -113,7 +116,7 @@ func (s *Store) Propose(msg []byte, svr *Server, clientIP string) error {
 func (s *Store) testGet(key string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.m[key]
+	return string(s.m[key])
 }
 
 // StartRaft opens the store. If enableSingle is set, and there are no existing peers,

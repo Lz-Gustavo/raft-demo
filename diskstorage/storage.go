@@ -19,6 +19,9 @@ const (
 	oneTweet = 128
 	oneKB    = 1024
 	fourKB   = 4096
+
+	// TODO: Assign this value as a command line argument
+	storeValuesOffset = oneTweet
 )
 
 const (
@@ -26,8 +29,7 @@ const (
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
 
-	fileBatchSync     = 100
-	storeValuesOffset = oneTweet
+	fileBatchSync = 100
 )
 
 // Custom configuration over default for testing

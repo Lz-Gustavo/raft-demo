@@ -129,7 +129,7 @@ func TestNumMessagesKvstore(b *testing.T) {
 
 			for k := 0; k < Cfg.numMessages; k++ {
 
-				op = rand.Intn(3)
+				op = rand.Intn(2)
 				if chosenClient && Cfg.mustLog {
 					coinThroughtput = rand.Intn(measureThroughput)
 					if coinThroughtput == 0 {
@@ -155,11 +155,11 @@ func TestNumMessagesKvstore(b *testing.T) {
 					}
 					break
 
-				case 2:
-					msg = &pb.Command{
-						Op:  pb.Command_DELETE,
-						Key: strconv.Itoa(rand.Intn(Cfg.numKey)),
-					}
+					// case 2:
+					// 	msg = &pb.Command{
+					// 		Op:  pb.Command_DELETE,
+					// 		Key: strconv.Itoa(rand.Intn(Cfg.numKey)),
+					// 	}
 				}
 				err := clients[j].BroadcastProtobuf(msg, strconv.Itoa(clients[j].Udpport))
 				if err != nil {
@@ -310,15 +310,16 @@ func generateRequests(reqs chan<- string, signal <-chan bool, numKey int, storeV
 
 	for {
 		var msg string
-		op := rand.Intn(3)
+		op := rand.Intn(2)
 
 		switch op {
 		case 0:
 			msg = fmt.Sprintf("set-%d-%s\n", rand.Intn(numKey), storeValue)
+			break
 		case 1:
 			msg = fmt.Sprintf("get-%d\n", rand.Intn(numKey))
-		case 2:
-			msg = fmt.Sprintf("delete-%d\n", rand.Intn(numKey))
+			// case 2:
+			// 	msg = fmt.Sprintf("delete-%d\n", rand.Intn(numKey))
 		}
 
 		select {
@@ -337,7 +338,7 @@ func generateProtobufRequests(reqs chan<- *pb.Command, signal <-chan bool, numKe
 
 	for {
 		var msg *pb.Command
-		op := rand.Intn(3)
+		op := rand.Intn(2)
 
 		switch op {
 		case 0:
@@ -346,16 +347,17 @@ func generateProtobufRequests(reqs chan<- *pb.Command, signal <-chan bool, numKe
 				Key:   strconv.Itoa(rand.Intn(numKey)),
 				Value: storeValue,
 			}
+			break
 		case 1:
 			msg = &pb.Command{
 				Op:  pb.Command_GET,
 				Key: strconv.Itoa(rand.Intn(numKey)),
 			}
-		case 2:
-			msg = &pb.Command{
-				Op:  pb.Command_DELETE,
-				Key: strconv.Itoa(rand.Intn(numKey)),
-			}
+			// case 2:
+			// 	msg = &pb.Command{
+			// 		Op:  pb.Command_DELETE,
+			// 		Key: strconv.Itoa(rand.Intn(numKey)),
+			// 	}
 		}
 
 		select {
