@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"log"
 	"net"
@@ -22,6 +23,14 @@ const (
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
 	compressValues      = true
+
+	preInitialize = true
+	numInitKeys   = 1000000
+	initValueSize = 128
+)
+
+var (
+	initValue = []byte(strings.Repeat("!", initValueSize))
 )
 
 // Custom configuration over default for testing
@@ -77,6 +86,26 @@ func New(inmem bool) *Store {
 		config.Batch = 100
 		config.Class = journey.Serialized
 		s.recov = journey.New(config, *logfolder+"log-file-"+svrID+".txt")
+	}
+
+	if compressValues {
+		s.gzipBuffer.Reset()
+		wtr := gzip.NewWriter(&s.gzipBuffer)
+		wtr.Write([]byte(initValue))
+
+		if err := wtr.Flush(); err != nil {
+			log.Fatalln(err)
+		}
+		if err := wtr.Close(); err != nil {
+			log.Fatalln(err)
+		}
+		initValue = s.gzipBuffer.Bytes()
+	}
+
+	if preInitialize {
+		for i := 0; i < numInitKeys; i++ {
+			s.m[strconv.Itoa(i)] = initValue
+		}
 	}
 	return s
 }
