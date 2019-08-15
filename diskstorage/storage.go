@@ -28,8 +28,6 @@ const (
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
 
-	fileBatchSync = 1
-
 	// Used in catastrophic fault models, where crash faults must be recoverable even if
 	// all nodes presented in the consensus cluster are down. Always set to false in any
 	// other cases, because this strong assumption greatly degradates performance.
@@ -60,16 +58,12 @@ type Store struct {
 	Local      *os.File
 	valueSize  int
 	storeValue []byte
-
-	batchSync  uint32
-	writeCount uint32
 }
 
 // New returns a new Store.
 func New(storeFilename string) (*Store, error) {
 
 	s := &Store{
-		batchSync: fileBatchSync,
 		valueSize: storeValuesOffset,
 		logger: hclog.New(&hclog.LoggerOptions{
 			Name:   "store",
@@ -80,11 +74,7 @@ func New(storeFilename string) (*Store, error) {
 	s.storeValue = []byte(strings.Repeat("@", s.valueSize))
 
 	var err error
-	if _, exists := os.Stat(storeFilename); exists == nil {
-		s.Local, err = os.OpenFile(storeFilename, os.O_RDWR, 0644)
-	} else if os.IsNotExist(exists) {
-		s.Local, err = os.Create(storeFilename)
-	}
+	s.Local, err = os.OpenFile(storeFilename, os.O_CREATE|os.O_EXCL|os.O_APPEND|os.O_SYNC, 0644)
 	if err != nil {
 		return nil, err
 	}

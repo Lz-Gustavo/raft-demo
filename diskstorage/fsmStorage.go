@@ -64,12 +64,6 @@ func (f *fsm) applySet(key, value string) string {
 	if err != nil {
 		panic(err.Error())
 	}
-
-	f.writeCount++
-	if f.writeCount == f.batchSync {
-		f.Local.Sync()
-		f.writeCount = 0
-	}
 	return ""
 }
 
@@ -85,12 +79,6 @@ func (f *fsm) applyDelete(key string) string {
 	_, err = f.Local.WriteAt(blankContent, stride)
 	if err != nil {
 		panic(err.Error())
-	}
-
-	f.writeCount++
-	if f.writeCount == f.batchSync {
-		f.Local.Sync()
-		f.writeCount = 0
 	}
 	return ""
 }
