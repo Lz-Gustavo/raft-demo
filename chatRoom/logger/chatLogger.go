@@ -9,8 +9,14 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/Lz-Gustavo/journey"
 	"github.com/hashicorp/raft"
+)
+
+const (
+	// Used in catastrophic fault models, where crash faults must be recoverable even if
+	// all nodes presented in the consensus cluster are down. Always set to false in any
+	// other cases, because this strong assumption greatly degradates performance.
+	catastrophicFaults = true
 )
 
 // Custom configuration over default for testing
@@ -26,23 +32,27 @@ func configRaft() *raft.Config {
 // Logger struct represents the Logger process state. Member of the Raft cluster as a
 // non-Voter participant and thus, just recording proposed commands to the FSM
 type Logger struct {
-	log   *log.Logger
-	raft  *raft.Raft
-	recov *journey.Log
+	log     *log.Logger
+	raft    *raft.Raft
+	LogFile *os.File
 }
 
 // NewLogger constructs a new Logger struct and its dependencies
 func NewLogger() *Logger {
 
-	config := journey.DefaultConfig
-	config.Batch = 100
-	config.Class = journey.Serialized
-
-	log := &Logger{
-		log:   log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
-		recov: journey.New(config, *logfolder+"log-file-"+logID+".txt"),
+	l := &Logger{
+		log: log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
 	}
-	return log
+
+	var flags int
+	if catastrophicFaults {
+		flags = os.O_CREATE | os.O_EXCL | os.O_APPEND | os.O_SYNC
+	} else {
+		flags = os.O_CREATE | os.O_EXCL | os.O_APPEND
+	}
+	l.LogFile, _ = os.OpenFile(*logfolder+"log-file-"+logID+".txt", flags, 0644)
+
+	return l
 }
 
 // StartRaft initializes the node to be part of the raft cluster, the Logger process procedure
@@ -116,7 +126,7 @@ func main() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
-	logger.recov.Close()
+	logger.LogFile.Close()
 }
 
 func sendJoinRequest() error {

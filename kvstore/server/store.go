@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Lz-Gustavo/journey"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 )
@@ -27,6 +26,11 @@ const (
 	preInitialize = true
 	numInitKeys   = 1000000
 	initValueSize = 128
+
+	// Used in catastrophic fault models, where crash faults must be recoverable even if
+	// all nodes presented in the consensus cluster are down. Always set to false in any
+	// other cases, because this strong assumption greatly degradates performance.
+	catastrophicFaults = true
 )
 
 var (
@@ -56,7 +60,7 @@ type Store struct {
 	logger hclog.Logger
 
 	Logging bool
-	recov   *journey.Log
+	LogFile *os.File
 
 	compress   bool
 	gzipBuffer bytes.Buffer
@@ -82,10 +86,13 @@ func New(inmem bool) *Store {
 
 	if *logfolder != "" {
 		s.Logging = true
-		config := journey.DefaultConfig
-		config.Batch = 100
-		config.Class = journey.Serialized
-		s.recov = journey.New(config, *logfolder+"log-file-"+svrID+".txt")
+		var flags int
+		if catastrophicFaults {
+			flags = os.O_CREATE | os.O_EXCL | os.O_APPEND | os.O_SYNC
+		} else {
+			flags = os.O_CREATE | os.O_EXCL | os.O_APPEND
+		}
+		s.LogFile, _ = os.OpenFile(*logfolder+"log-file-"+svrID+".txt", flags, 0644)
 	}
 
 	if compressValues {

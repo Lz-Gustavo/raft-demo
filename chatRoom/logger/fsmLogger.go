@@ -26,7 +26,8 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 	}
 	command.Id = l.Index
 	serializedCmd, _ := proto.Marshal(command)
-	return s.recov.Put(serializedCmd)
+	_, err = s.LogFile.Write(serializedCmd)
+	return err
 }
 
 // Restore stores the key-value store to a previous state.

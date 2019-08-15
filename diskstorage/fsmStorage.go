@@ -25,7 +25,7 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	if f.Logging {
 		command.Id = l.Index
 		serializedCmd, _ := proto.Marshal(command)
-		defer f.recov.Put(serializedCmd)
+		defer f.LogFile.Write(serializedCmd)
 	}
 
 	switch command.Op {

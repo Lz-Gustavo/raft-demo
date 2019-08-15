@@ -38,6 +38,9 @@ func NewServer(s *Store) *Server {
 func (svr *Server) Exit() {
 
 	svr.kvstore.raft.Shutdown()
+	if svr.kvstore.Logging {
+		svr.kvstore.LogFile.Close()
+	}
 	for _, v := range svr.clients {
 		v.Disconnect()
 	}

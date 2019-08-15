@@ -39,6 +39,9 @@ func (svr *Server) Exit() {
 
 	svr.kvstore.Local.Close()
 	svr.kvstore.raft.Shutdown()
+	if svr.kvstore.Logging {
+		svr.kvstore.LogFile.Close()
+	}
 	for _, v := range svr.clients {
 		v.Disconnect()
 	}
