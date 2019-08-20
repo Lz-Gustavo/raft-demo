@@ -50,7 +50,21 @@ func NewLogger() *Logger {
 	} else {
 		flags = os.O_CREATE | os.O_EXCL | os.O_APPEND
 	}
-	l.LogFile, _ = os.OpenFile(*logfolder+"log-file-"+logID+".txt", flags, 0644)
+
+	logFileName := *logfolder + "log-file-" + logID + ".txt"
+	if catastrophicFaults {
+		flags = os.O_SYNC | os.O_WRONLY
+	} else {
+		flags = os.O_WRONLY
+	}
+
+	if _, exists := os.Stat(logFileName); exists == nil {
+		l.LogFile, _ = os.OpenFile(logFileName, flags, 0644)
+	} else if os.IsNotExist(exists) {
+		l.LogFile, _ = os.OpenFile(logFileName, os.O_CREATE|flags, 0644)
+	} else {
+		log.Fatalln("Could not create log file:", exists.Error())
+	}
 
 	return l
 }

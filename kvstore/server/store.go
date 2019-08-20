@@ -21,7 +21,7 @@ const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
 	logLevel            = "ERROR"
-	compressValues      = true
+	compressValues      = false
 
 	preInitialize = true
 	numInitKeys   = 1000000
@@ -87,12 +87,21 @@ func New(inmem bool) *Store {
 	if *logfolder != "" {
 		s.Logging = true
 		var flags int
+
+		logFileName := *logfolder + "log-file-" + svrID + ".txt"
 		if catastrophicFaults {
-			flags = os.O_CREATE | os.O_EXCL | os.O_APPEND | os.O_SYNC
+			flags = os.O_SYNC | os.O_WRONLY
 		} else {
-			flags = os.O_CREATE | os.O_EXCL | os.O_APPEND
+			flags = os.O_WRONLY
 		}
-		s.LogFile, _ = os.OpenFile(*logfolder+"log-file-"+svrID+".txt", flags, 0644)
+
+		if _, exists := os.Stat(logFileName); exists == nil {
+			s.LogFile, _ = os.OpenFile(logFileName, flags, 0644)
+		} else if os.IsNotExist(exists) {
+			s.LogFile, _ = os.OpenFile(logFileName, os.O_CREATE|flags, 0644)
+		} else {
+			log.Fatalln("Could not create log file:", exists.Error())
+		}
 	}
 
 	if compressValues {

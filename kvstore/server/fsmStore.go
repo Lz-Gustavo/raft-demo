@@ -28,7 +28,12 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	if f.Logging {
 		command.Id = l.Index
 		serializedCmd, _ := proto.Marshal(command)
-		defer f.LogFile.Write(serializedCmd)
+		defer func() {
+			f.LogFile.Write(serializedCmd)
+			//if catastrophicFaults {
+			//	f.LogFile.Sync()
+			//}
+		}()
 	}
 
 	switch command.Op {
