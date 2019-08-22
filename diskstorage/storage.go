@@ -74,7 +74,7 @@ func New(storeFilename string) (*Store, error) {
 	s.storeValue = []byte(strings.Repeat("@", s.valueSize))
 
 	var err error
-	s.Local, err = os.OpenFile(storeFilename, os.O_CREATE|os.O_EXCL|os.O_APPEND|os.O_SYNC, 0644)
+	s.Local, err = os.OpenFile(storeFilename, os.O_APPEND|os.O_SYNC|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
 	}

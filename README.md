@@ -10,12 +10,8 @@ This repository organizes some demo applications using [hashicorp's Go implement
 	
 	- Client execution is configured by a .toml file, and store received messages on a queue to discard equal messages sent by other replica.
 
-	- /logger/ is a logger process that acts as a non-Voter replica on the raft cluster, only logging committed commands to it's own log file using Journey¹.
-
 	- Channels implementation based from [drewolson's gist chat.go](https://gist.github.com/drewolson/3950226).
-	
-	¹Journey: an optimized logging package for log-recovery, work in progress.
-  
+
 * **kvstore**
 	
 	A key-value in-memory SM-Replicated storage server. Applies received "get", "set" and "delete" operations on a regular map, using Raft to ensure total order.
@@ -24,13 +20,19 @@ This repository organizes some demo applications using [hashicorp's Go implement
 	
 	[Otoolep's](https://github.com/otoolep/hraftd) reference example of hashicorp raft, intially logging committed messages using Journey.
 
+* **logger**
+
+	A logger process that acts as a non-Voter replica on the raft cluster, only logging committed commands to it's own log file using Journey¹.
+
+	¹Journey: an optimized logging package for log-recovery, work in progress.
+
 * **diskstorage**
 	
-	[IN PROGRESS] A persistent storage application. Applies received "get", "set" and "delete" operations on a regular file following a calculated offset, simply defined by (key * storeValueOffset). Uses the same logic from **kvstore** application, except it's storage and FSM implementation.
+	A persistent storage application. Applies received "get", "set" and "delete" operations on a regular file following a calculated offset, simply defined by (key * storeValueOffset). Uses the same logic from **kvstore** application, except it's storage and FSM implementation.
 
 ## Usage
 
-**chatRoom and kvstore** 
+**chatRoom, kvstore and diskstorage** 
 
 1. Set the number of replicas, their corresponding IP's and a port to listen for cluster UDP repplies on a .toml config file
 
@@ -76,14 +78,22 @@ This repository organizes some demo applications using [hashicorp's Go implement
 get-[key]
 set-[key]-[value]
 delete-[key]
-``` 
+```
+
+Or the [Protocol Buffers](https://developers.google.com/protocol-buffers/) message format specified at journey/pb.
 
 ## Profiling
 
-**kvstore** application supports both CPU and memory profiling from [pprof](https://golang.org/pkg/runtime/pprof/) library. To record some performance metrics, you just need to run the server programm passing the flags:
+**kvstore** and **diskstorage** applications supports both CPU and memory profiling from [pprof](https://golang.org/pkg/runtime/pprof/) library. To record some performance metrics, you just need to run the server programm passing the flags:
 
 ```bash
 ./server -cpuprofile=filename.prof -memprofile=filename.prof
+```
+
+In case you want to measure the efficiency of the decoupled logger process against application level logging, you can force the both **kvstore** and **diskstorage** applications to synchronously save each new requisition into a log, by passing the flag:
+
+```bash
+./server -logfolder=/path/to/folder/
 ```
 
 ## Issues and Upcoming Features
