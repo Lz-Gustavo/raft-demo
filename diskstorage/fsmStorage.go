@@ -31,8 +31,8 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	switch command.Op {
 	case pb.Command_SET:
 		return strings.Join([]string{command.Ip, f.applySet(command.Key, command.Value)}, "-")
-	case pb.Command_DELETE:
-		return strings.Join([]string{command.Ip, f.applyDelete(command.Key)}, "-")
+	//case pb.Command_DELETE:
+	//return strings.Join([]string{command.Ip, f.applyDelete(command.Key)}, "-")
 	case pb.Command_GET:
 		return strings.Join([]string{command.Ip, f.applyGet(command.Key)}, "-")
 	default:

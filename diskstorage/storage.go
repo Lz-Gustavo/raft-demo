@@ -16,8 +16,8 @@ import (
 
 const (
 	oneTweet = 128
-	oneKB    = 1000
-	fourKB   = 4000
+	oneKB    = 1024
+	fourKB   = 4096
 
 	// TODO: Assign this value as a command line argument
 	storeValuesOffset = oneTweet
@@ -86,12 +86,21 @@ func New(storeFilename string) (*Store, error) {
 	if *logfolder != "" {
 		s.Logging = true
 		var flags int
+
+		logFileName := *logfolder + "log-file-" + svrID + ".txt"
 		if catastrophicFaults {
-			flags = os.O_CREATE | os.O_EXCL | os.O_APPEND | os.O_SYNC
+			flags = os.O_SYNC | os.O_WRONLY
 		} else {
-			flags = os.O_CREATE | os.O_EXCL | os.O_APPEND
+			flags = os.O_WRONLY
 		}
-		s.LogFile, _ = os.OpenFile(*logfolder+"log-file-"+svrID+".txt", flags, 0644)
+
+		if _, exists := os.Stat(logFileName); exists == nil {
+			s.LogFile, _ = os.OpenFile(logFileName, flags, 0644)
+		} else if os.IsNotExist(exists) {
+			s.LogFile, _ = os.OpenFile(logFileName, os.O_CREATE|flags, 0644)
+		} else {
+			log.Fatalln("Could not create log file:", exists.Error())
+		}
 	}
 	return s, nil
 }

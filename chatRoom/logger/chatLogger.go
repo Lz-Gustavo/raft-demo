@@ -45,12 +45,6 @@ func NewLogger() *Logger {
 	}
 
 	var flags int
-	if catastrophicFaults {
-		flags = os.O_CREATE | os.O_EXCL | os.O_APPEND | os.O_SYNC
-	} else {
-		flags = os.O_CREATE | os.O_EXCL | os.O_APPEND
-	}
-
 	logFileName := *logfolder + "log-file-" + logID + ".txt"
 	if catastrophicFaults {
 		flags = os.O_SYNC | os.O_WRONLY
