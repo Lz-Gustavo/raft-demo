@@ -72,15 +72,21 @@ This repository organizes some demo applications using [hashicorp's Go implement
 	./client -config=../client-config.toml
 	```
 
-**OBS:** Message formats accepted by the kvstore are:
+**OBS:** 
 
-```bash
-get-[key]
-set-[key]-[value]
-delete-[key]
-```
+- Kvstore application can interpret the [Protocol Buffers](https://developers.google.com/protocol-buffers/) message format specified at journey/pb.Message, or the ad-hoc format described bellow:
 
-Or the [Protocol Buffers](https://developers.google.com/protocol-buffers/) message format specified at journey/pb.
+	```bash
+	get-[key]
+	set-[key]-[value]
+	delete-[key]
+	```
+
+- A single Logger processes can connect to multiple Raft clusters. Simply pass unique value tuples as command line arguments:
+
+	```bash
+	./logger -id 'log0,log1' -raft ':12000,:12001' -join ':13000,:13001'
+	```
 
 ## Profiling
 
@@ -90,7 +96,7 @@ Or the [Protocol Buffers](https://developers.google.com/protocol-buffers/) messa
 ./server -cpuprofile=filename.prof -memprofile=filename.prof
 ```
 
-In case you want to measure the efficiency of the decoupled logger process against application level logging, you can force the both **kvstore** and **diskstorage** applications to synchronously save each new requisition into a log, by passing the flag:
+In case you want to measure the efficiency of the decoupled logger process against application level logging, you can force both **kvstore** and **diskstorage** applications to synchronously save each new requisition into a log, by passing the flag:
 
 ```bash
 ./server -logfolder=/path/to/folder/

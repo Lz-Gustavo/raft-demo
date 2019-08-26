@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync/atomic"
 
 	"github.com/Lz-Gustavo/journey"
 	"github.com/Lz-Gustavo/journey/pb"
@@ -27,6 +28,10 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 	command.Id = l.Index
 	serializedCmd, _ := proto.Marshal(command)
 	_, err = s.LogFile.Write(serializedCmd)
+
+	if s.monit {
+		atomic.AddUint64(&s.req, 1)
+	}
 	return err
 }
 

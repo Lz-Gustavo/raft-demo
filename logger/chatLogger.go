@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/raft"
@@ -17,6 +19,9 @@ const (
 	// all nodes presented in the consensus cluster are down. Always set to false in any
 	// other cases, because this strong assumption greatly degradates performance.
 	catastrophicFaults = true
+
+	// Each second writes current throughput to stdout.
+	monitoringThroughtput = false
 )
 
 // Custom configuration over default for testing
@@ -35,17 +40,21 @@ type Logger struct {
 	log     *log.Logger
 	raft    *raft.Raft
 	LogFile *os.File
+
+	monit bool
+	req   uint64
 }
 
 // NewLogger constructs a new Logger struct and its dependencies
-func NewLogger() *Logger {
+func NewLogger(uniqueID string) *Logger {
 
 	l := &Logger{
 		log: log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
+		req: 0,
 	}
 
 	var flags int
-	logFileName := *logfolder + "log-file-" + logID + ".txt"
+	logFileName := *logfolder + "log-file-" + uniqueID + ".txt"
 	if catastrophicFaults {
 		flags = os.O_SYNC | os.O_WRONLY
 	} else {
@@ -60,12 +69,16 @@ func NewLogger() *Logger {
 		log.Fatalln("Could not create log file:", exists.Error())
 	}
 
+	if monitoringThroughtput {
+		l.monit = true
+		l.monitor()
+	}
 	return l
 }
 
 // StartRaft initializes the node to be part of the raft cluster, the Logger process procedure
 // is differente because its will never the first initialize node and never a candidate to leadership
-func (lgr *Logger) StartRaft(localID string) error {
+func (lgr *Logger) StartRaft(localID, raftAddr string) error {
 
 	// Setup Raft configuration.
 	config := configRaft()
@@ -101,6 +114,16 @@ func (lgr *Logger) StartRaft(localID string) error {
 	return nil
 }
 
+func (lgr *Logger) monitor() {
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
+			cont := atomic.SwapUint64(&lgr.req, 0)
+			fmt.Println(cont)
+		}
+	}()
+}
+
 var logID string
 var raftAddr string
 var joinAddr string
@@ -121,23 +144,44 @@ func main() {
 	if logID == "" {
 		log.Fatalln("must set a logger ID, run with: ./logger -id 'logID'")
 	}
-	logger := NewLogger()
 
-	// Start the Raft cluster
-	if err := logger.StartRaft(logID); err != nil {
-		log.Fatalf("failed to start raft cluster: %s", err.Error())
+	listOfLogIds := strings.Split(logID, ",")
+	numDiffIds := countDiffStrInSlice(listOfLogIds)
+
+	listOfRaftAddrs := strings.Split(raftAddr, ",")
+	numDiffRaft := countDiffStrInSlice(listOfRaftAddrs)
+
+	listOfJoinAddrs := strings.Split(joinAddr, ",")
+	numDiffServices := countDiffStrInSlice(listOfJoinAddrs)
+
+	if numDiffServices != numDiffIds || numDiffIds != numDiffRaft || numDiffRaft != numDiffServices {
+		log.Fatalln("must run with the same number of unique IDs, raft and join addrs: ./logger -id 'X,Y' -raft 'A,B' -join 'W,Z'")
 	}
-	if err := sendJoinRequest(); err != nil {
-		log.Fatalf("failed to send join request to node at %s: %s", joinAddr, err.Error())
+
+	loggerInstances := make([]*Logger, numDiffServices)
+	for i := 0; i < numDiffServices; i++ {
+		go func(j int) {
+
+			loggerInstances[j] = NewLogger(listOfLogIds[j])
+			if err := loggerInstances[j].StartRaft(listOfLogIds[j], listOfRaftAddrs[j]); err != nil {
+				log.Fatalf("failed to start raft cluster: %s", err.Error())
+			}
+			if err := sendJoinRequest(listOfLogIds[j], listOfRaftAddrs[j], listOfJoinAddrs[j]); err != nil {
+				log.Fatalf("failed to send join request to node at %s: %s", listOfJoinAddrs[j], err.Error())
+			}
+		}(i)
 	}
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)
 	<-terminate
-	logger.LogFile.Close()
+
+	for _, l := range loggerInstances {
+		l.LogFile.Close()
+	}
 }
 
-func sendJoinRequest() error {
+func sendJoinRequest(logID, raftAddr, joinAddr string) error {
 	joinConn, err := net.Dial("tcp", joinAddr)
 	if err != nil {
 		return err
@@ -153,4 +197,18 @@ func sendJoinRequest() error {
 		return err
 	}
 	return nil
+}
+
+func countDiffStrInSlice(elements []string) int {
+
+	foundMarker := make(map[string]bool, len(elements))
+	numDiff := 0
+
+	for _, str := range elements {
+		if !foundMarker[str] {
+			foundMarker[str] = true
+			numDiff++
+		}
+	}
+	return numDiff
 }
