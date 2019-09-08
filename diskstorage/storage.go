@@ -31,7 +31,7 @@ const (
 	// Used in catastrophic fault models, where crash faults must be recoverable even if
 	// all nodes presented in the consensus cluster are down. Always set to false in any
 	// other cases, because this strong assumption greatly degradates performance.
-	catastrophicFaults = true
+	catastrophicFaults = false
 )
 
 // Custom configuration over default for testing
@@ -159,7 +159,7 @@ func (s *Store) StartRaft(enableSingle bool, localID string, localRaftAddr strin
 	stableStore := raft.NewInmemStore()
 
 	// Create a fake snapshot store
-	dir := "checkpoints/" + svrID
+	dir := "checkpoints/" + localID
 	snapshots, err := raft.NewFileSnapshotStore(dir, 2, os.Stderr)
 	if err != nil {
 		return fmt.Errorf("file snapshot store: %s", err)

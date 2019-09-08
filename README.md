@@ -30,6 +30,10 @@ This repository organizes some demo applications using [hashicorp's Go implement
 	
 	A persistent storage application. Applies received "get", "set" and "delete" operations on a regular file following a calculated offset, simply defined by (key * storeValueOffset). Uses the same logic from **kvstore** application, except it's storage and FSM implementation.
 
+* **recovery**
+
+	TODO
+
 ## Usage
 
 **chatRoom, kvstore and diskstorage** 

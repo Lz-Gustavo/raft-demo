@@ -16,6 +16,7 @@ var svrPort string
 var raftAddr string
 var joinAddr string
 var joinHandlerAddr string
+var recovHandlerAddr string
 
 var cpuprofile, memprofile, logfolder *string
 
@@ -25,6 +26,7 @@ func init() {
 	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
 	flag.StringVar(&joinAddr, "join", "", "Set join address, if any")
 	flag.StringVar(&joinHandlerAddr, "hjoin", "", "Set port id to receive join requests on the raft cluster")
+	flag.StringVar(&recovHandlerAddr, "hrecov", "", "Set port id to receive state transfer requests from the application log")
 
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to a file")
 	memprofile = flag.String("memprofile", "", "write memory profile to a file")
@@ -35,7 +37,7 @@ func main() {
 
 	flag.Parse()
 	if svrID == "" {
-		log.Fatalln("must set a server ID, run with: ./server -id 'svrID'")
+		log.Fatalln("Must set a server ID, run with: ./server -id 'svrID'")
 	}
 
 	if *cpuprofile != "" {

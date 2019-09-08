@@ -18,7 +18,7 @@ const (
 	// Used in catastrophic fault models, where crash faults must be recoverable even if
 	// all nodes presented in the consensus cluster are down. Always set to false in any
 	// other cases, because this strong assumption greatly degradates performance.
-	catastrophicFaults = true
+	catastrophicFaults = false
 
 	// Each second writes current throughput to stdout.
 	monitoringThroughtput = false
@@ -99,7 +99,7 @@ func (lgr *Logger) StartRaft(localID, raftAddr string) error {
 	stableStore := raft.NewInmemStore()
 
 	// Create a fake snapshot store
-	dir := "checkpoints/" + logID
+	dir := "checkpoints/" + localID
 	snapshots, err := raft.NewFileSnapshotStore(dir, 2, os.Stderr)
 	if err != nil {
 		return fmt.Errorf("file snapshot store: %s", err)

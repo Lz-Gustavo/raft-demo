@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -30,7 +31,7 @@ const (
 	// Used in catastrophic fault models, where crash faults must be recoverable even if
 	// all nodes presented in the consensus cluster are down. Always set to false in any
 	// other cases, because this strong assumption greatly degradates performance.
-	catastrophicFaults = true
+	catastrophicFaults = false
 )
 
 var (
@@ -82,6 +83,10 @@ func New(inmem bool) *Store {
 
 	if joinHandlerAddr != "" {
 		s.ListenRaftJoins(joinHandlerAddr)
+	}
+
+	if recovHandlerAddr != "" {
+		s.ListenStateTransfer(recovHandlerAddr)
 	}
 
 	if *logfolder != "" {
@@ -188,7 +193,7 @@ func (s *Store) StartRaft(enableSingle bool, localID string, localRaftAddr strin
 	stableStore := raft.NewInmemStore()
 
 	// Create a fake snapshot store
-	dir := "checkpoints/" + svrID
+	dir := "checkpoints/" + localID
 	snapshots, err := raft.NewFileSnapshotStore(dir, 2, os.Stderr)
 	if err != nil {
 		return fmt.Errorf("file snapshot store: %s", err)
@@ -282,7 +287,7 @@ func (s *Store) ListenRaftJoins(addr string) {
 
 			data := strings.Split(request, "-")
 			if len(data) < 3 {
-				log.Fatalf("incorrect join request, data: %s", data)
+				log.Fatalf("incorrect join request, got: %s", data)
 			}
 
 			data[2] = strings.TrimSuffix(data[2], "\n")
@@ -293,4 +298,108 @@ func (s *Store) ListenRaftJoins(addr string) {
 			}
 		}
 	}()
+}
+
+// UnsafeStateRecover ...
+func (s *Store) UnsafeStateRecover(logIndex uint64, activePipe net.Conn) error {
+
+	if !s.Logging {
+		return fmt.Errorf("Cannot force application-level recover from a non-logged application")
+	}
+
+	// Create a read-only file descriptor
+	logFileName := *logfolder + "log-file-" + svrID + ".txt"
+	fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
+	defer fd.Close()
+
+	logFileContent, err := readAll(fd)
+	if err != nil {
+		return err
+	}
+
+	signalError := make(chan error, 0)
+	go func(dataToSend []byte, pipe net.Conn, signal chan<- error) {
+
+		_, err := pipe.Write(dataToSend)
+		signal <- err
+
+	}(logFileContent, activePipe, signalError)
+	return <-signalError
+}
+
+// ListenStateTransfer ...
+func (s *Store) ListenStateTransfer(addr string) {
+
+	go func() {
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
+		}
+
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Fatalf("accept failed: %s", err.Error())
+			}
+
+			request, _ := bufio.NewReader(conn).ReadString('\n')
+
+			data := strings.Split(request, "-")
+			if len(data) != 2 {
+				log.Fatalf("incorrect state request, got: %s", data)
+			}
+
+			data[1] = strings.TrimSuffix(data[1], "\n")
+			requestedLogIndex, _ := strconv.Atoi(data[1])
+
+			err = s.UnsafeStateRecover(uint64(requestedLogIndex), conn)
+			if err != nil {
+				log.Fatalf("failed to transfer log to node located at %s: %s", data[0], err.Error())
+			}
+		}
+	}()
+}
+
+// readAll is a slightly derivation of 'ioutil.ReadFile()'. It skips the file descriptor creation
+// and is declared to avoid unecessary dependency from the whole ioutil package.
+// 'A little copying is better than a little dependency.'
+func readAll(fileDescriptor *os.File) ([]byte, error) {
+	// It's a good but not certain bet that FileInfo will tell us exactly how much to
+	// read, so let's try it but be prepared for the answer to be wrong.
+	var n int64 = bytes.MinRead
+
+	if fi, err := fileDescriptor.Stat(); err == nil {
+		// As initial capacity for readAll, use Size + a little extra in case Size
+		// is zero, and to avoid another allocation after Read has filled the
+		// buffer. The readAll call will read into its allocated internal buffer
+		// cheaply. If the size was wrong, we'll either waste some space off the end
+		// or reallocate as needed, but in the overwhelmingly common case we'll get
+		// it just right.
+		if size := fi.Size() + bytes.MinRead; size > n {
+			n = size
+		}
+	}
+	return func(r io.Reader, capacity int64) (b []byte, err error) {
+		// readAll reads from r until an error or EOF and returns the data it read
+		// from the internal buffer allocated with a specified capacity.
+		var buf bytes.Buffer
+		// If the buffer overflows, we will get bytes.ErrTooLarge.
+		// Return that as an error. Any other panic remains.
+		defer func() {
+			e := recover()
+			if e == nil {
+				return
+			}
+			if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
+				err = panicErr
+			} else {
+				panic(e)
+			}
+		}()
+		if int64(int(capacity)) == capacity {
+			buf.Grow(int(capacity))
+		}
+		_, err = buf.ReadFrom(r)
+		return buf.Bytes(), err
+	}(fileDescriptor, n)
 }
