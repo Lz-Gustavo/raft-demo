@@ -1,9 +1,14 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/binary"
+	"log"
 	"strconv"
 	"strings"
+
+	"github.com/Lz-Gustavo/journey/pb"
+	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -30,8 +35,45 @@ func NewMockState() *MockState {
 }
 
 // InstallReceivedState ...
-func (m *MockState) InstallReceivedState(newState []byte) error {
-	// TODO: ...
-	fmt.Println("Received State:", newState)
-	return nil
+func (m *MockState) InstallReceivedState(newState []byte) (int64, error) {
+
+	reader := bytes.NewReader(newState)
+	commandsToApply := make([]pb.Command, 0, len(newState))
+	for {
+
+		var commandLength int32
+		err := binary.Read(reader, binary.BigEndian, &commandLength)
+		if err != nil {
+			log.Println("Error encountered on size reading:", err.Error())
+			break
+		}
+
+		serializedCmd := make([]byte, commandLength)
+		_, err = reader.Read(serializedCmd)
+		if err != nil {
+			log.Println("Error encountered on buf reading.:", err.Error())
+			break
+		}
+
+		command := &pb.Command{}
+		err = proto.Unmarshal(serializedCmd, command)
+		if err != nil {
+			log.Println("Error encountered on cmd marsh reading.:", err.Error())
+			break
+		}
+		commandsToApply = append(commandsToApply, *command)
+	}
+
+	for _, cmd := range commandsToApply {
+		switch cmd.Op {
+		case pb.Command_SET:
+			m.state[cmd.Key] = []byte(cmd.Value)
+
+		default:
+			break
+		}
+	}
+
+	numOfCommands := int64(len(commandsToApply))
+	return numOfCommands, nil
 }

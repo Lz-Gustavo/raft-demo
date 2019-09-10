@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 	}
 	command.Id = l.Index
 	serializedCmd, _ := proto.Marshal(command)
+	binary.Write(s.LogFile, binary.BigEndian, int32(len(serializedCmd)))
 	_, err = s.LogFile.Write(serializedCmd)
 
 	if s.monit {

@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -51,6 +55,10 @@ func NewLogger(uniqueID string) *Logger {
 	l := &Logger{
 		log: log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
 		req: 0,
+	}
+
+	if recovHandlerAddr != "" {
+		l.ListenStateTransfer(recovHandlerAddr)
 	}
 
 	var flags int
@@ -124,9 +132,115 @@ func (lgr *Logger) monitor() {
 	}()
 }
 
+// UnsafeStateRecover ...
+func (lgr *Logger) UnsafeStateRecover(logIndex uint64, activePipe net.Conn) error {
+
+	// Create a read-only file descriptor
+	logFileName := *logfolder + "log-file-" + logID + ".txt"
+	fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
+	defer fd.Close()
+
+	logFileContent, err := readAll(fd)
+	if err != nil {
+		return err
+	}
+
+	signalError := make(chan error, 0)
+	go func(dataToSend []byte, pipe net.Conn, signal chan<- error) {
+
+		_, err := pipe.Write(dataToSend)
+		signal <- err
+
+	}(logFileContent, activePipe, signalError)
+	return <-signalError
+}
+
+// ListenStateTransfer ...
+func (lgr *Logger) ListenStateTransfer(addr string) {
+
+	go func() {
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
+		}
+
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Fatalf("accept failed: %s", err.Error())
+			}
+
+			request, _ := bufio.NewReader(conn).ReadString('\n')
+
+			data := strings.Split(request, "-")
+			if len(data) != 2 {
+				log.Fatalf("incorrect state request, got: %s", data)
+			}
+
+			data[1] = strings.TrimSuffix(data[1], "\n")
+			requestedLogIndex, _ := strconv.Atoi(data[1])
+
+			err = lgr.UnsafeStateRecover(uint64(requestedLogIndex), conn)
+			if err != nil {
+				log.Fatalf("failed to transfer log to node located at %s: %s", data[0], err.Error())
+			}
+
+			err = conn.Close()
+			if err != nil {
+				log.Fatalf("Error encountered on connection close: %s", err.Error())
+			}
+		}
+	}()
+}
+
+// readAll is a slightly derivation of 'ioutil.ReadFile()'. It skips the file descriptor creation
+// and is declared to avoid unecessary dependency from the whole ioutil package.
+// 'A little copying is better than a little dependency.'
+func readAll(fileDescriptor *os.File) ([]byte, error) {
+	// It's a good but not certain bet that FileInfo will tell us exactly how much to
+	// read, so let's try it but be prepared for the answer to be wrong.
+	var n int64 = bytes.MinRead
+
+	if fi, err := fileDescriptor.Stat(); err == nil {
+		// As initial capacity for readAll, use Size + a little extra in case Size
+		// is zero, and to avoid another allocation after Read has filled the
+		// buffer. The readAll call will read into its allocated internal buffer
+		// cheaply. If the size was wrong, we'll either waste some space off the end
+		// or reallocate as needed, but in the overwhelmingly common case we'll get
+		// it just right.
+		if size := fi.Size() + bytes.MinRead; size > n {
+			n = size
+		}
+	}
+	return func(r io.Reader, capacity int64) (b []byte, err error) {
+		// readAll reads from r until an error or EOF and returns the data it read
+		// from the internal buffer allocated with a specified capacity.
+		var buf bytes.Buffer
+		// If the buffer overflows, we will get bytes.ErrTooLarge.
+		// Return that as an error. Any other panic remains.
+		defer func() {
+			e := recover()
+			if e == nil {
+				return
+			}
+			if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
+				err = panicErr
+			} else {
+				panic(e)
+			}
+		}()
+		if int64(int(capacity)) == capacity {
+			buf.Grow(int(capacity))
+		}
+		_, err = buf.ReadFrom(r)
+		return buf.Bytes(), err
+	}(fileDescriptor, n)
+}
+
 var logID string
 var raftAddr string
 var joinAddr string
+var recovHandlerAddr string
 
 var logfolder *string
 
@@ -134,6 +248,7 @@ func init() {
 	flag.StringVar(&logID, "id", "", "Set the logger unique ID")
 	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
 	flag.StringVar(&joinAddr, "join", ":13000", "Set join address to an already configured raft node")
+	flag.StringVar(&recovHandlerAddr, "hrecov", "", "Set port id to receive state transfer requests from the application log")
 
 	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder using Journey")
 }

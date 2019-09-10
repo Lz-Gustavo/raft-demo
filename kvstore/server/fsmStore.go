@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,8 +29,12 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 	if f.Logging {
 		command.Id = l.Index
 		serializedCmd, _ := proto.Marshal(command)
+
 		defer func() {
+
+			binary.Write(f.LogFile, binary.BigEndian, int32(len(serializedCmd)))
 			f.LogFile.Write(serializedCmd)
+
 			//if catastrophicFaults {
 			//	f.LogFile.Sync()
 			//}

@@ -20,7 +20,7 @@ const (
 	fourKB   = 4096
 
 	// TODO: Assign this value as a command line argument
-	storeValuesOffset = oneTweet
+	storeValuesOffset = oneKB
 )
 
 const (

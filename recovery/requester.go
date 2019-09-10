@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"strconv"
@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	preInitialize = true
+	preInitialize = false
 	numInitKeys   = 1000000
 	initValueSize = 128
 
 	// Used to initialize a state transfer protocol to the application log after a specified
 	// number of seconds.
-	requestStateAfterSec = 120
+	requestStateAfterSec = 30
 )
 
 var recovAddr string
@@ -41,12 +41,13 @@ func main() {
 	time.Sleep(time.Duration(requestStateAfterSec) * time.Second)
 
 	receivedState, stateTransferTime := AskForStateTransfer(0)
-	stateInstallTime := StartStateInstallation(recovReplica, receivedState)
 
-	fmt.Println("Transfer Time:", stateTransferTime)
-	fmt.Println("Install Time:", stateInstallTime)
-	fmt.Println("State Size:")
-	fmt.Println("Num of Commands:")
+	numCommands, stateInstallTime := StartStateInstallation(recovReplica, receivedState)
+
+	fmt.Println("Transfer Time (ns):", stateTransferTime)
+	fmt.Println("Install Time (ns):", stateInstallTime)
+	fmt.Println("State Size (bytes):", len(receivedState))
+	fmt.Println("Num of Commands:", numCommands)
 }
 
 // AskForStateTransfer ...
@@ -62,15 +63,15 @@ func AskForStateTransfer(firstIndex int) ([]byte, int64) {
 }
 
 // StartStateInstallation ...
-func StartStateInstallation(replica *MockState, receivedState []byte) int64 {
+func StartStateInstallation(replica *MockState, receivedState []byte) (numCmds, duration int64) {
 
 	stateInstallStart := time.Now()
-	err := replica.InstallReceivedState(receivedState)
+	cmds, err := replica.InstallReceivedState(receivedState)
 	if err != nil {
 		log.Fatalf("Failed to install the received state: %s", err.Error())
 	}
 	stateInstallFinish := int64(time.Since(stateInstallStart) / time.Nanosecond)
-	return stateInstallFinish
+	return cmds, stateInstallFinish
 }
 
 func sendStateRequest(index int) ([]byte, error) {
@@ -86,9 +87,10 @@ func sendStateRequest(index int) ([]byte, error) {
 	}
 
 	var receivedData []byte
-	scanner := bufio.NewScanner(stateConn)
-	for scanner.Scan() {
-		receivedData = append(receivedData, scanner.Bytes()...)
+
+	receivedData, err = ioutil.ReadAll(stateConn)
+	if err != nil {
+		log.Fatalln("Could not read state response:", err.Error())
 	}
 
 	if err = stateConn.Close(); err != nil {

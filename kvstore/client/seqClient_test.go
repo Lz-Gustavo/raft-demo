@@ -51,8 +51,17 @@ func init() {
 	flag.IntVar(&Cfg.numKey, "key", 0, "Set the number of differente keys for hash set")
 	flag.Int64Var(&Cfg.execTime, "time", 0, "Set the execution time of the experiment")
 	flag.BoolVar(&Cfg.mustLog, "log", true, "Set if this client execution will generate latency logs (0: false; 1: true)")
+	flag.IntVar(&dataChoice, "data", -1, "Choose the size of the stored value in the KV storage ('0' = 128B, '1' = 1KB, '2' = 4KB)")
+}
 
-	flag.IntVar(&dataChoice, "data", 0, "Choose the size of the stored value in the KV storage ('0' = 128B, '1' = 1KB, '2' = 4KB)")
+func TestNumMessagesKvstore(b *testing.T) {
+
+	b.Parallel()
+	flag.Parse()
+	if Cfg.numClients == 0 || Cfg.numMessages == 0 || Cfg.numKey == 0 {
+		b.Fatal("Must define a number of clients/messages/diff keys > zero")
+	}
+
 	switch dataChoice {
 	case 0:
 		storeValue = oneTweet
@@ -63,16 +72,7 @@ func init() {
 	case 2:
 		storeValue = fourKB
 	default:
-		log.Fatalln("Must specify a valid option in '-data' argument ('0' = 128B, '1' = 1KB, '2' = 4KB)")
-	}
-}
-
-func TestNumMessagesKvstore(b *testing.T) {
-
-	b.Parallel()
-	flag.Parse()
-	if Cfg.numClients == 0 || Cfg.numMessages == 0 || Cfg.numKey == 0 {
-		b.Fatal("Must define a number of clients/messages/diff keys > zero")
+		log.Fatalf("Must specify a valid option in '-data' argument ('0' = 128B, '1' = 1KB, '2' = 4KB) Passed: %d, %T", dataChoice, dataChoice)
 	}
 
 	configBarrier := new(sync.WaitGroup)
@@ -199,6 +199,19 @@ func TestClientTimeKvstore(b *testing.T) {
 	flag.Parse()
 	if Cfg.numClients == 0 || Cfg.execTime == 0 || Cfg.numKey == 0 {
 		b.Fatal("Must define a number of clients/execTime/diff keys > zero")
+	}
+
+	switch dataChoice {
+	case 0:
+		storeValue = oneTweet
+		break
+	case 1:
+		storeValue = oneKB
+		break
+	case 2:
+		storeValue = fourKB
+	default:
+		log.Fatalf("Must specify a valid option in '-data' argument ('0' = 128B, '1' = 1KB, '2' = 4KB) Passed: %d, %T", dataChoice, dataChoice)
 	}
 
 	configBarrier := new(sync.WaitGroup)

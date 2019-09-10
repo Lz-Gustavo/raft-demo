@@ -26,7 +26,7 @@ const (
 
 	preInitialize = true
 	numInitKeys   = 1000000
-	initValueSize = 128
+	initValueSize = 1024
 
 	// Used in catastrophic fault models, where crash faults must be recoverable even if
 	// all nodes presented in the consensus cluster are down. Always set to false in any
@@ -355,6 +355,11 @@ func (s *Store) ListenStateTransfer(addr string) {
 			err = s.UnsafeStateRecover(uint64(requestedLogIndex), conn)
 			if err != nil {
 				log.Fatalf("failed to transfer log to node located at %s: %s", data[0], err.Error())
+			}
+
+			err = conn.Close()
+			if err != nil {
+				log.Fatalf("Error encountered on connection close: %s", err.Error())
 			}
 		}
 	}()
