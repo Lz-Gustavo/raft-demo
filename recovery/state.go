@@ -38,7 +38,7 @@ func NewMockState() *MockState {
 func (m *MockState) InstallReceivedState(newState []byte) (int64, error) {
 
 	reader := bytes.NewReader(newState)
-	commandsToApply := make([]pb.Command, 0, len(newState))
+	commandsToApply := make([]pb.Command, 0)
 	for {
 
 		var commandLength int32
