@@ -31,7 +31,7 @@ func (s *fsm) Apply(l *raft.Log) interface{} {
 	binary.Write(s.LogFile, binary.BigEndian, int32(len(serializedCmd)))
 	_, err = s.LogFile.Write(serializedCmd)
 
-	if s.monit {
+	if monitoringThroughtput {
 		atomic.AddUint64(&s.req, 1)
 	}
 	return err
