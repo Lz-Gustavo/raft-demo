@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -14,13 +15,15 @@ type Server struct {
 	clients  []*Session
 	joins    chan net.Conn
 	incoming chan *Request
+	cancel   context.CancelFunc
 
 	req     uint64
 	kvstore *Store
 }
 
 // NewServer constructs and starts a new Server
-func NewServer(s *Store) *Server {
+func NewServer(ctx context.Context, s *Store) *Server {
+
 	svr := &Server{
 		clients:  make([]*Session, 0),
 		joins:    make(chan net.Conn),
@@ -29,8 +32,8 @@ func NewServer(s *Store) *Server {
 		kvstore:  s,
 	}
 
-	svr.Listen()
-	svr.monitor()
+	go svr.Listen(ctx)
+	go svr.monitor(ctx)
 	return svr
 }
 
@@ -44,8 +47,6 @@ func (svr *Server) Exit() {
 	for _, v := range svr.clients {
 		v.Disconnect()
 	}
-	close(svr.joins)
-	close(svr.incoming)
 }
 
 // Broadcast sends a message to every other client on the room
@@ -74,16 +75,17 @@ func (svr *Server) HandleRequest(cmd *Request) {
 }
 
 // Join threats a join requisition from clients to the Server state
-func (svr *Server) Join(connection net.Conn) {
+func (svr *Server) Join(ctx context.Context, connection net.Conn) {
 	client := NewSession(connection)
 	svr.clients = append(svr.clients, client)
+
 	go func() {
 		for {
 			select {
-			case data, ok := <-client.incoming:
-				if !ok {
-					return
-				}
+			case <-ctx.Done():
+				return
+
+			case data := <-client.incoming:
 				svr.incoming <- data
 			}
 		}
@@ -91,35 +93,34 @@ func (svr *Server) Join(connection net.Conn) {
 }
 
 // Listen receives incoming messagens and new connections from clients
-func (svr *Server) Listen() {
-	go func() {
-		for {
-			select {
-			case data, ok := <-svr.incoming:
-				if !ok {
-					return
-				}
-				svr.HandleRequest(data)
+func (svr *Server) Listen(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
 
-			case conn, ok := <-svr.joins:
-				if !ok {
-					return
-				}
-				svr.Join(conn)
-			}
+		case data := <-svr.incoming:
+			svr.HandleRequest(data)
+
+		case conn := <-svr.joins:
+			svr.Join(ctx, conn)
 		}
-	}()
+	}
 }
 
-func (svr *Server) monitor() {
-	go func() {
-		for {
+func (svr *Server) monitor(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
 			time.Sleep(1 * time.Second)
 			cont := atomic.SwapUint64(&svr.req, 0)
 			svr.kvstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
 			fmt.Println(cont)
 		}
-	}()
+	}
 }
 
 func validateReq(requisition string) bool {

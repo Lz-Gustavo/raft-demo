@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -68,7 +69,7 @@ type Store struct {
 }
 
 // New returns a new Store.
-func New(inmem bool) *Store {
+func New(ctx context.Context, inmem bool) *Store {
 
 	s := &Store{
 		m:        make(map[string][]byte),
@@ -82,11 +83,11 @@ func New(inmem bool) *Store {
 	}
 
 	if joinHandlerAddr != "" {
-		s.ListenRaftJoins(joinHandlerAddr)
+		go s.ListenRaftJoins(ctx, joinHandlerAddr)
 	}
 
 	if recovHandlerAddr != "" {
-		s.ListenStateTransfer(recovHandlerAddr)
+		go s.ListenStateTransfer(ctx, recovHandlerAddr)
 	}
 
 	if *logfolder != "" {
@@ -269,15 +270,19 @@ func (s *Store) JoinRaft(nodeID, addr string, voter bool) error {
 // ListenRaftJoins receives incoming join requests to the raft cluster. Its initialized
 // when "-hjoin" flag is specified, and it can be set only in the first node in case you
 // have a static/imutable cluster architecture
-func (s *Store) ListenRaftJoins(addr string) {
+func (s *Store) ListenRaftJoins(ctx context.Context, addr string) {
 
-	go func() {
-		listener, err := net.Listen("tcp", addr)
-		if err != nil {
-			log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
-		}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
+	}
 
-		for {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
 			conn, err := listener.Accept()
 			if err != nil {
 				log.Fatalf("accept failed: %s", err.Error())
@@ -297,7 +302,7 @@ func (s *Store) ListenRaftJoins(addr string) {
 				log.Fatalf("failed to join node at %s: %s", data[1], err.Error())
 			}
 		}
-	}()
+	}
 }
 
 // UnsafeStateRecover ...
@@ -328,15 +333,19 @@ func (s *Store) UnsafeStateRecover(logIndex uint64, activePipe net.Conn) error {
 }
 
 // ListenStateTransfer ...
-func (s *Store) ListenStateTransfer(addr string) {
+func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 
-	go func() {
-		listener, err := net.Listen("tcp", addr)
-		if err != nil {
-			log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
-		}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
+	}
 
-		for {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
 			conn, err := listener.Accept()
 			if err != nil {
 				log.Fatalf("accept failed: %s", err.Error())
@@ -362,7 +371,7 @@ func (s *Store) ListenStateTransfer(addr string) {
 				log.Fatalf("Error encountered on connection close: %s", err.Error())
 			}
 		}
-	}()
+	}
 }
 
 // readAll is a slightly derivation of 'ioutil.ReadFile()'. It skips the file descriptor creation

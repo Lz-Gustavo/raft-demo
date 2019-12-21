@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	s := New(false)
+	s := New(context.TODO(), false)
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
@@ -27,7 +28,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestOperations(t *testing.T) {
-	s := New(true)
+	s := New(context.TODO(), true)
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
