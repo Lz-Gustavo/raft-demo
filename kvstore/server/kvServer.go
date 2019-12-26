@@ -15,7 +15,6 @@ type Server struct {
 	clients  []*Session
 	joins    chan net.Conn
 	incoming chan *Request
-	cancel   context.CancelFunc
 
 	req     uint64
 	kvstore *Store
@@ -23,7 +22,6 @@ type Server struct {
 
 // NewServer constructs and starts a new Server
 func NewServer(ctx context.Context, s *Store) *Server {
-
 	svr := &Server{
 		clients:  make([]*Session, 0),
 		joins:    make(chan net.Conn),

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -36,7 +37,6 @@ const (
 
 // Custom configuration over default for testing
 func configRaft() *raft.Config {
-
 	config := raft.DefaultConfig()
 	config.SnapshotInterval = 24 * time.Hour
 	config.SnapshotThreshold = 2 << 62
@@ -61,7 +61,7 @@ type Store struct {
 }
 
 // New returns a new Store.
-func New(storeFilename string) (*Store, error) {
+func New(ctx context.Context, storeFilename string) (*Store, error) {
 
 	s := &Store{
 		valueSize: storeValuesOffset,
@@ -80,7 +80,7 @@ func New(storeFilename string) (*Store, error) {
 	}
 
 	if joinHandlerAddr != "" {
-		s.ListenRaftJoins(joinHandlerAddr)
+		go s.ListenRaftJoins(ctx, joinHandlerAddr)
 	}
 
 	if *logfolder != "" {
@@ -235,15 +235,19 @@ func (s *Store) JoinRaft(nodeID, addr string, voter bool) error {
 // ListenRaftJoins receives incoming join requests to the raft cluster. Its initialized
 // when "-hjoin" flag is specified, and it can be set only in the first node in case you
 // have a static/imutable cluster architecture
-func (s *Store) ListenRaftJoins(addr string) {
+func (s *Store) ListenRaftJoins(ctx context.Context, addr string) {
 
-	go func() {
-		listener, err := net.Listen("tcp", addr)
-		if err != nil {
-			log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
-		}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
+	}
 
-		for {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
 			conn, err := listener.Accept()
 			if err != nil {
 				log.Fatalf("accept failed: %s", err.Error())
@@ -263,5 +267,5 @@ func (s *Store) ListenRaftJoins(addr string) {
 				log.Fatalf("failed to join node at %s: %s", data[1], err.Error())
 			}
 		}
-	}()
+	}
 }

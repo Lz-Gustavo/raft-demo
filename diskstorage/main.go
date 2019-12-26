@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -54,8 +55,10 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Initialize the Key-value store
-	kvs, err := New(stateFilename)
+	kvs, err := New(ctx, stateFilename)
 	if err != nil {
 		log.Fatalf("Failed to start storage: %s", err.Error())
 	}
@@ -70,7 +73,7 @@ func main() {
 	}
 
 	// Initialize the server
-	server := NewServer(kvs)
+	server := NewServer(ctx, kvs)
 
 	// Send a join request, if any
 	if joinAddr != "" {
@@ -106,6 +109,8 @@ func main() {
 			log.Fatal("could not write memory profile: ", err)
 		}
 	}
+
+	cancel()
 	server.Exit()
 }
 
