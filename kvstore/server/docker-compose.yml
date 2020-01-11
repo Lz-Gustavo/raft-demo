@@ -1,0 +1,30 @@
+version: "2"
+services:
+  rep-leader:
+    build: .
+    ports:
+      - "11000:11000"
+      - "12000:12000"
+      - "13000:13000"
+    image: server_rep-leader
+    command: ["/go/bin/kvstore -id node0 -hjoin :13000"]
+  
+  rep1:
+    build: .
+    ports:
+      - "11001:11000"
+      - "12001:12000"
+    depends_on:
+      - "rep-leader"
+    image: server_rep1
+    command: ["sleep 2", "/go/bin/kvstore -id node0 -join :13000"]
+  
+  rep2:
+    build: .
+    ports:
+      - "11002:11000"
+      - "12002:12000"
+    depends_on:
+      - "rep-leader"
+    image: server_rep2
+    command: ["sleep 2", "/go/bin/kvstore -id node2 -join :13000"]

@@ -16,6 +16,7 @@ type Server struct {
 	joins    chan net.Conn
 	incoming chan *Request
 
+	t       *time.Timer
 	req     uint64
 	kvstore *Store
 }
@@ -28,6 +29,7 @@ func NewServer(ctx context.Context, s *Store) *Server {
 		incoming: make(chan *Request),
 		req:      0,
 		kvstore:  s,
+		t:        time.NewTimer(time.Second),
 	}
 
 	go svr.Listen(ctx)
@@ -38,6 +40,7 @@ func NewServer(ctx context.Context, s *Store) *Server {
 // Exit closes the raft context and releases any resources allocated
 func (svr *Server) Exit() {
 
+	svr.kvstore.Local.Close()
 	svr.kvstore.raft.Shutdown()
 	if svr.kvstore.Logging {
 		svr.kvstore.LogFile.Close()
@@ -112,11 +115,11 @@ func (svr *Server) monitor(ctx context.Context) {
 		case <-ctx.Done():
 			return
 
-		default:
-			time.Sleep(1 * time.Second)
+		case <-svr.t.C:
 			cont := atomic.SwapUint64(&svr.req, 0)
 			svr.kvstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
 			fmt.Println(cont)
+			svr.t.Reset(time.Second)
 		}
 	}
 }

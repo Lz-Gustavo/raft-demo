@@ -74,7 +74,6 @@ func (client *Session) Write(ctx context.Context) {
 
 		case data := <-client.outgoing:
 			client.writer.WriteString(data)
-			client.writer.Flush()
 		}
 	}
 }
