@@ -44,7 +44,7 @@ This repository organizes scripts, papers, and mainly demo applications using [h
 
 ## Usage
 
-**chatRoom, kvstore and diskstorage** 
+### CMDLI chatRoom, kvstore and diskstorage 
 
 1. Set the number of replicas, their corresponding IP's and a port to listen for cluster UDP repplies on a .toml config file
 
@@ -84,7 +84,15 @@ This repository organizes scripts, papers, and mainly demo applications using [h
 	./client -config=../client-config.toml
 	```
 
-**OBS:** 
+### Docker
+
+In order to reference go mods inside Docker build context, you must build the desired application imagem from the repository root folder, like the example provided below:
+
+```bash
+docker build -f kvstore/server/Dockerfile -t kvstore .
+```
+
+### OBS:
 
 - Kvstore application can interpret the [Protocol Buffers](https://developers.google.com/protocol-buffers/) message format specified at journey/pb.Message, or the ad-hoc format described bellow:
 

@@ -1,12 +1,17 @@
-FROM golang:1.10-alpine
+FROM golang:1.13-alpine as build-env
+ENV GO111MODULE=on
 
-WORKDIR /go/src/
+RUN mkdir /go/src/kvstore
+WORKDIR /go/src/kvstore
 
-COPY . kvstore/
+COPY go.mod .
+COPY go.sum .
+RUN apk update && apk add git && apk add gcc
+RUN go mod download
+COPY kvstore/server .
+RUN go build -o kvstore
 
-RUN apk update
-RUN apk add git
-RUN go get -u github.com/Lz-Gustavo/journey
-RUN go get -u github.com/hashicorp/raft
-RUN go get -u github.com/hashicorp/go-hclog
-RUN cd kvstore/ && go install
+FROM alpine:latest
+WORKDIR /root/
+COPY --from=build-env /go/src/kvstore/kvstore .
+CMD ["./kvstore"]
