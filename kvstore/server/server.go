@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -16,9 +17,10 @@ type Server struct {
 	joins    chan net.Conn
 	incoming chan *Request
 
-	t       *time.Timer
-	req     uint64
-	kvstore *Store
+	t          *time.Timer
+	req        uint64
+	throughput *os.File
+	kvstore    *Store
 }
 
 // NewServer constructs and starts a new Server
@@ -31,6 +33,7 @@ func NewServer(ctx context.Context, s *Store) *Server {
 		kvstore:  s,
 		t:        time.NewTimer(time.Second),
 	}
+	svr.throughput = createFile(svrID + "-throughput.out")
 
 	go svr.Listen(ctx)
 	go svr.monitor(ctx)
@@ -116,13 +119,14 @@ func (svr *Server) monitor(ctx context.Context) {
 
 		case <-svr.t.C:
 			cont := atomic.SwapUint64(&svr.req, 0)
-			svr.kvstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
-			fmt.Println(cont)
+			//svr.kvstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
+			svr.throughput.WriteString(fmt.Sprintf("%v\n", cont))
 			svr.t.Reset(time.Second)
 		}
 	}
 }
 
+// Legacy code, used only on ad-hoc message formats.
 func validateReq(requisition string) bool {
 
 	requisition = strings.ToLower(requisition)

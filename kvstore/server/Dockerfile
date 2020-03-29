@@ -14,4 +14,7 @@ RUN go build -o kvstore
 FROM alpine:latest
 WORKDIR /root/
 COPY --from=build-env /go/src/kvstore/kvstore .
-CMD ["./kvstore"]
+
+# Application is not initialized because application-level logging is
+# enabled by a cmd line argument. 
+#CMD ["./kvstore"]
