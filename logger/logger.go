@@ -24,7 +24,7 @@ const (
 	catastrophicFaults = false
 
 	// Each second writes current throughput to stdout.
-	monitoringThroughtput = false
+	monitoringThroughtput = true
 )
 
 // Custom configuration over default for testing
@@ -45,6 +45,9 @@ type Logger struct {
 	LogFile *os.File
 	req     uint64
 	cancel  context.CancelFunc
+
+	t          *time.Timer
+	throughput *os.File
 }
 
 // NewLogger constructs a new Logger struct and its dependencies
@@ -52,7 +55,7 @@ func NewLogger(uniqueID string) *Logger {
 
 	ctx, c := context.WithCancel(context.Background())
 	l := &Logger{
-		log:    log.New(os.Stderr, "[chatLogger] ", log.LstdFlags),
+		log:    log.New(os.Stderr, "[logger] ", log.LstdFlags),
 		req:    0,
 		cancel: c,
 	}
@@ -61,23 +64,12 @@ func NewLogger(uniqueID string) *Logger {
 		go l.ListenStateTransfer(ctx, recovHandlerAddr)
 	}
 
-	var flags int
 	logFileName := *logfolder + "log-file-" + uniqueID + ".txt"
-	if catastrophicFaults {
-		flags = os.O_SYNC | os.O_WRONLY
-	} else {
-		flags = os.O_WRONLY
-	}
-
-	if _, exists := os.Stat(logFileName); exists == nil {
-		l.LogFile, _ = os.OpenFile(logFileName, flags, 0644)
-	} else if os.IsNotExist(exists) {
-		l.LogFile, _ = os.OpenFile(logFileName, os.O_CREATE|flags, 0644)
-	} else {
-		log.Fatalln("Could not create log file:", exists.Error())
-	}
+	l.LogFile = createFile(logFileName)
 
 	if monitoringThroughtput {
+		l.t = time.NewTimer(time.Second)
+		l.throughput = createFile(logID + "-throughput.out")
 		go l.monitor(ctx)
 	}
 	return l
@@ -127,10 +119,10 @@ func (lgr *Logger) monitor(ctx context.Context) {
 		case <-ctx.Done():
 			return
 
-		default:
-			time.Sleep(1 * time.Second)
+		case <-lgr.t.C:
 			cont := atomic.SwapUint64(&lgr.req, 0)
-			fmt.Println(cont)
+			lgr.throughput.WriteString(fmt.Sprintf("%v\n", cont))
+			lgr.t.Reset(time.Second)
 		}
 	}
 }
@@ -242,4 +234,25 @@ func readAll(fileDescriptor *os.File) ([]byte, error) {
 		_, err = buf.ReadFrom(r)
 		return buf.Bytes(), err
 	}(fileDescriptor, n)
+}
+
+func createFile(filename string) *os.File {
+
+	var flags int
+	if catastrophicFaults {
+		flags = os.O_SYNC | os.O_WRONLY
+	} else {
+		flags = os.O_WRONLY
+	}
+
+	var fd *os.File
+	if _, exists := os.Stat(filename); exists == nil {
+		fd, _ = os.OpenFile(filename, flags, 0644)
+	} else if os.IsNotExist(exists) {
+		fd, _ = os.OpenFile(filename, os.O_CREATE|flags, 0644)
+	} else {
+		log.Fatalln("Could not create file", filename, ":", exists.Error())
+		return nil
+	}
+	return fd
 }

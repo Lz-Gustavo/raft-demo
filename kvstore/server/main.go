@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	staticIPs = true
+	staticIPs = false
 )
 
 var (

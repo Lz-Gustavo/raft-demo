@@ -10,38 +10,51 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 const (
 	stateFilename = "/tmp/store1gb.txt"
+	staticIPs     = false
 )
 
-var svrID string
-var svrPort string
-var raftAddr string
-var joinAddr string
-var joinHandlerAddr string
-
-var cpuprofile, memprofile, logfolder *string
+var (
+	svrID           string
+	svrPort         string
+	raftAddr        string
+	joinAddr        string
+	joinHandlerAddr string
+	cpuprofile      *string
+	memprofile      *string
+	logfolder       *string
+)
 
 func init() {
-	flag.StringVar(&svrID, "id", "", "Set server unique ID")
-	flag.StringVar(&svrPort, "port", ":11000", "Set the server bind address")
-	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
-	flag.StringVar(&joinAddr, "join", "", "Set join address, if any")
-	flag.StringVar(&joinHandlerAddr, "hjoin", "", "Set port id to receive join requests on the raft cluster")
 
+	if staticIPs {
+		parseIPsFromArgsConfig()
+	} else {
+		err := requestKubeConfig()
+		if err != nil {
+			log.Fatalln("Failed to retrieve Kubernetes config, err:", err.Error())
+		}
+	}
+
+	flag.StringVar(&svrID, "id", "", "Set server unique ID")
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to a file")
 	memprofile = flag.String("memprofile", "", "write memory profile to a file")
-	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder using Journey")
+	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder")
+	flag.Parse()
+
+	if svrID == "" {
+		log.Fatalln("Must set a server ID, run with: ./server -id 'svrID'")
+	}
 }
 
 func main() {
-
-	flag.Parse()
-	if svrID == "" {
-		log.Fatalln("must set a server ID, run with: ./server -id 'svrID'")
-	}
 
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -90,7 +103,7 @@ func main() {
 			}
 
 			server.joins <- conn
-			server.kvstore.logger.Info("New client connected!")
+			server.dkstore.logger.Info("New client connected!")
 		}
 	}()
 
@@ -128,6 +141,40 @@ func sendJoinRequest() error {
 
 	if err = joinConn.Close(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func parseIPsFromArgsConfig() {
+	flag.StringVar(&svrPort, "port", ":11000", "Set the server bind address")
+	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
+	flag.StringVar(&joinAddr, "join", "", "Set join address, if any")
+	flag.StringVar(&joinHandlerAddr, "hjoin", "", "Set port id to receive join requests on the raft cluster")
+}
+
+func requestKubeConfig() error {
+
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	// get pods in all the namespaces by omitting namespace
+	// Or specify namespace to get pods in particular namespace
+	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods.Items {
+		fmt.Println("IP:", pod.Status.PodIP)
 	}
 	return nil
 }

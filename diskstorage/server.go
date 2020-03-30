@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -16,9 +17,10 @@ type Server struct {
 	joins    chan net.Conn
 	incoming chan *Request
 
-	t       *time.Timer
-	req     uint64
-	kvstore *Store
+	t          *time.Timer
+	req        uint64
+	throughput *os.File
+	dkstore    *Store
 }
 
 // NewServer constructs and starts a new Server
@@ -28,9 +30,10 @@ func NewServer(ctx context.Context, s *Store) *Server {
 		joins:    make(chan net.Conn),
 		incoming: make(chan *Request),
 		req:      0,
-		kvstore:  s,
+		dkstore:  s,
 		t:        time.NewTimer(time.Second),
 	}
+	svr.throughput = createFile(svrID + "-throughput.out")
 
 	go svr.Listen(ctx)
 	go svr.monitor(ctx)
@@ -40,10 +43,10 @@ func NewServer(ctx context.Context, s *Store) *Server {
 // Exit closes the raft context and releases any resources allocated
 func (svr *Server) Exit() {
 
-	svr.kvstore.Local.Close()
-	svr.kvstore.raft.Shutdown()
-	if svr.kvstore.Logging {
-		svr.kvstore.LogFile.Close()
+	svr.dkstore.Local.Close()
+	svr.dkstore.raft.Shutdown()
+	if svr.dkstore.Logging {
+		svr.dkstore.LogFile.Close()
 	}
 	for _, v := range svr.clients {
 		v.Disconnect()
@@ -69,8 +72,8 @@ func (svr *Server) SendUDP(addr string, message string) {
 func (svr *Server) HandleRequest(cmd *Request) {
 
 	data := bytes.TrimSuffix(cmd.Command, []byte("\n"))
-	if err := svr.kvstore.Propose(data, svr, cmd.Ip); err != nil {
-		svr.kvstore.logger.Error(fmt.Sprintf("Failed to propose message: %q, error: %s\n", data, err.Error()))
+	if err := svr.dkstore.Propose(data, svr, cmd.Ip); err != nil {
+		svr.dkstore.logger.Error(fmt.Sprintf("Failed to propose message: %q, error: %s\n", data, err.Error()))
 	}
 	atomic.AddUint64(&svr.req, 1)
 }
@@ -117,8 +120,8 @@ func (svr *Server) monitor(ctx context.Context) {
 
 		case <-svr.t.C:
 			cont := atomic.SwapUint64(&svr.req, 0)
-			svr.kvstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
-			fmt.Println(cont)
+			//svr.dkstore.logger.Info(fmt.Sprintf("Thoughput(cmds/s): %d", cont))
+			svr.throughput.WriteString(fmt.Sprintf("%v\n", cont))
 			svr.t.Reset(time.Second)
 		}
 	}

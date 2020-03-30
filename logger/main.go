@@ -8,30 +8,44 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-var logID string
-var raftAddr string
-var joinAddr string
-var recovHandlerAddr string
+const (
+	staticIPs = false
+)
 
-var logfolder *string
+var (
+	logID            string
+	raftAddr         string
+	joinAddr         string
+	recovHandlerAddr string
+	logfolder        *string
+)
 
 func init() {
+
+	if staticIPs {
+		parseIPsFromArgsConfig()
+	} else {
+		err := requestKubeConfig()
+		if err != nil {
+			log.Fatalln("Failed to retrieve Kubernetes config, err:", err.Error())
+		}
+	}
+
 	flag.StringVar(&logID, "id", "", "Set the logger unique ID")
-	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
-	flag.StringVar(&joinAddr, "join", ":13000", "Set join address to an already configured raft node")
-	flag.StringVar(&recovHandlerAddr, "hrecov", "", "Set port id to receive state transfer requests from the application log")
-
-	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder using Journey")
-}
-
-func main() {
-
+	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder")
 	flag.Parse()
 	if logID == "" {
 		log.Fatalln("must set a logger ID, run with: ./logger -id 'logID'")
 	}
+}
+
+func main() {
 
 	listOfLogIds := strings.Split(logID, ",")
 	numDiffIds := countDiffStrInSlice(listOfLogIds)
@@ -98,4 +112,39 @@ func countDiffStrInSlice(elements []string) int {
 		}
 	}
 	return numDiff
+}
+
+func parseIPsFromArgsConfig() {
+	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
+	flag.StringVar(&joinAddr, "join", ":13000", "Set join address to an already configured raft node")
+	flag.StringVar(&recovHandlerAddr, "hrecov", "", "Set port id to receive state transfer requests from the application log")
+}
+
+// requestKubeConfig with a different implementation than the other applications, submmiting
+// join requests to every identified pod during initilization.
+func requestKubeConfig() error {
+
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	// get pods in all the namespaces by omitting namespace
+	// Or specify namespace to get pods in particular namespace
+	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods.Items {
+		fmt.Println("IP:", pod.Status.PodIP)
+	}
+	return nil
 }

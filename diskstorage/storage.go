@@ -74,7 +74,7 @@ func New(ctx context.Context, storeFilename string) (*Store, error) {
 	s.storeValue = []byte(strings.Repeat("@", s.valueSize))
 
 	var err error
-	s.Local, err = os.OpenFile(storeFilename, os.O_APPEND|os.O_SYNC|os.O_RDWR, 0644)
+	s.Local, err = os.OpenFile(storeFilename, os.O_SYNC|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -85,22 +85,8 @@ func New(ctx context.Context, storeFilename string) (*Store, error) {
 
 	if *logfolder != "" {
 		s.Logging = true
-		var flags int
-
 		logFileName := *logfolder + "log-file-" + svrID + ".txt"
-		if catastrophicFaults {
-			flags = os.O_SYNC | os.O_WRONLY
-		} else {
-			flags = os.O_WRONLY
-		}
-
-		if _, exists := os.Stat(logFileName); exists == nil {
-			s.LogFile, _ = os.OpenFile(logFileName, flags, 0644)
-		} else if os.IsNotExist(exists) {
-			s.LogFile, _ = os.OpenFile(logFileName, os.O_CREATE|flags, 0644)
-		} else {
-			log.Fatalln("Could not create log file:", exists.Error())
-		}
+		s.LogFile = createFile(logFileName)
 	}
 	return s, nil
 }
@@ -268,4 +254,25 @@ func (s *Store) ListenRaftJoins(ctx context.Context, addr string) {
 			}
 		}
 	}
+}
+
+func createFile(filename string) *os.File {
+
+	var flags int
+	if catastrophicFaults {
+		flags = os.O_SYNC | os.O_WRONLY
+	} else {
+		flags = os.O_WRONLY
+	}
+
+	var fd *os.File
+	if _, exists := os.Stat(filename); exists == nil {
+		fd, _ = os.OpenFile(filename, flags, 0644)
+	} else if os.IsNotExist(exists) {
+		fd, _ = os.OpenFile(filename, os.O_CREATE|flags, 0644)
+	} else {
+		log.Fatalln("Could not create file", filename, ":", exists.Error())
+		return nil
+	}
+	return fd
 }
