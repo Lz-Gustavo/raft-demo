@@ -37,10 +37,11 @@ do
 			else
 				$local/genClients.sh 1 ${numClients[i]} ${execTime} ${numDiffHash} ${j} ${2} ${3}
 			fi
-		
-			if [ $2 -eq "1" ]; then
-				mv $path/client/*.txt ${local}/${1}/${j}/${clientsFolders[i]}/${clientsFolders[i]}c-latency.txt
-			fi
+
+			# Disable for kube monitoring...
+			# if [ $2 -eq "1" ]; then
+			# 	mv $path/client/*.out ${local}/${1}/${j}/${clientsFolders[i]}/${clientsFolders[i]}c-latency.out
+			# fi
 		fi
 		echo "Finished running experiment for ${numClients[i]} clients."; echo ""
 
@@ -48,9 +49,10 @@ do
 		sleep 10s
 	done
 
-	if [ $2 -eq "1" ]; then
-		mv $path/$app/*.txt ${local}/${1}/${j}/
-	fi
+	# Disable for kube monitoring...
+	# if [ $2 -eq "1" ]; then
+	# 	mv $path/$app/*.out ${local}/${1}/${j}/
+	# fi
 
 	echo "Finished clients for $j data size."; echo ""
 done

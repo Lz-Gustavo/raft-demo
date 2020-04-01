@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: loadgen
+spec:
+  template:
+    spec:
+      containers:
+      - name: r3-loadgen
+        image: r3muskteers/loadgen
+        command: ["./go/src/client/run.sh"]
+        args: ["./ 1 /go/src/client/kube-config.toml"]
+      restartPolicy: Never
+  backoffLimit: 1

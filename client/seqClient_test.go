@@ -83,7 +83,7 @@ func TestNumMessagesKvstore(b *testing.T) {
 
 	var logger *log.Logger
 	if Cfg.mustLog {
-		outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.out", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			b.Fatalf("could not open log file: %s\n", err.Error())
 		}
@@ -222,7 +222,7 @@ func TestClientTimeKvstore(b *testing.T) {
 
 	var logger *log.Logger
 	if Cfg.mustLog {
-		outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		outFile, err := os.OpenFile(strconv.Itoa(Cfg.numClients)+"c-latency.out", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			b.Fatalf("could not open log file: %s\n", err.Error())
 		}
