@@ -1,6 +1,7 @@
 #!/bin/bash
 
-path=/home/lzgustavo/go/src/raft-demo/kvstore
+path=/home/lzgustavo/go/src/raft-demo
+app=kvstore
 local=.
 
 numClients=(1 4 7 10 13 16 19)
@@ -48,7 +49,7 @@ do
 	done
 
 	if [ $2 -eq "1" ]; then
-		mv $path/server/*.txt ${local}/${1}/${j}/
+		mv $path/$app/*.txt ${local}/${1}/${j}/
 	fi
 
 	echo "Finished clients for $j data size."; echo ""

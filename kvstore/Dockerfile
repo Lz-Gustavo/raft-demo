@@ -8,7 +8,7 @@ COPY go.mod .
 COPY go.sum .
 RUN apk update && apk add git && apk add gcc
 RUN go mod download
-COPY kvstore/server .
+COPY kvstore .
 RUN go build -o kvstore
 
 FROM alpine:latest

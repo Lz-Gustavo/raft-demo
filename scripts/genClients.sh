@@ -1,7 +1,6 @@
 #!/bin/bash
 
-#goSource=github.com/Lz-Gustavo/raft-demo/kvstore/client
-goSource=raft-demo/kvstore/client
+goSource=raft-demo/client
 
 if [[ $# -ne 6 ]] && [[ $# -ne 7 ]]
 then
