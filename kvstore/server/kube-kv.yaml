@@ -1,16 +1,58 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kvstore
+  name: kvstore-leader
 spec:
   selector:
     matchLabels:
       app: kvstore
-  replicas: 3
+  replicas: 1
   template:
     metadata:
       labels:
         app: kvstore
+        r3: leader
+    spec:
+      containers:
+        - name: r3-kvstore-leader
+          image: r3muskteers/kvstore:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["./kvstore"]
+          #args: ["-id", "node0"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvstore-follower
+spec:
+  selector:
+    matchLabels:
+      app: kvstore
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: kvstore
+        r3: follower
     spec:
       containers:
         - name: r3-kvstore
@@ -23,7 +65,28 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["./kvstore"]
-          args: ["-id", "node0"]
+          #args: ["-id", "node0"]
+          env:
+            # - name: MY_NODE_NAME
+            #   valueFrom:
+            #     fieldRef:
+            #       fieldPath: spec.nodeName
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # - name: MY_POD_SERVICE_ACCOUNT
+            #   valueFrom:
+            #     fieldRef:
+            #       fieldPath: spec.serviceAccountName
 ---
 apiVersion: v1
 kind: Service

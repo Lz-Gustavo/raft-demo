@@ -10,6 +10,8 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"strings"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -17,6 +19,9 @@ import (
 )
 
 const (
+	// Defines wheter the application should interpret IPs provided on
+	// cmdli args or use its current env POD_IP and ask the other to
+	// Kubernetes sdk
 	staticIPs = false
 )
 
@@ -30,6 +35,10 @@ var (
 	cpuprofile       *string
 	memprofile       *string
 	logfolder        *string
+
+	envPodIP        string
+	envPodName      string
+	envPodNamespace string
 )
 
 func init() {
@@ -37,13 +46,18 @@ func init() {
 	if staticIPs {
 		parseIPsFromArgsConfig()
 	} else {
+
+		loadEnvVariables()
+		svrID = "node" + strings.Split(envPodIP, ".")[3]
+		svrPort = ":11000"
+		raftAddr = envPodIP + ":12000"
+
 		err := requestKubeConfig()
 		if err != nil {
 			log.Fatalln("Failed to retrieve Kubernetes config, err:", err.Error())
 		}
 	}
 
-	flag.StringVar(&svrID, "id", "", "Set server unique ID")
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to a file")
 	memprofile = flag.String("memprofile", "", "write memory profile to a file")
 	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder")
@@ -52,6 +66,12 @@ func init() {
 	if svrID == "" {
 		log.Fatalln("Must set a server ID, run with: ./server -id 'svrID'")
 	}
+
+	fmt.Println("ID:", svrID)
+	fmt.Println("app:", svrPort)
+	fmt.Println("raft:", raftAddr)
+	fmt.Println("join:", joinAddr)
+	fmt.Println("hjoin:", joinHandlerAddr)
 }
 
 func main() {
@@ -143,6 +163,7 @@ func sendJoinRequest() error {
 }
 
 func parseIPsFromArgsConfig() {
+	flag.StringVar(&svrID, "id", "", "Set server unique ID")
 	flag.StringVar(&svrPort, "port", ":11000", "Set the server bind address")
 	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
 	flag.StringVar(&joinAddr, "join", "", "Set join address, if any")
@@ -152,27 +173,77 @@ func parseIPsFromArgsConfig() {
 
 func requestKubeConfig() error {
 
-	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return err
-	}
+	if isLeader() {
 
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
+		// Must only set port 13000 to listen raft join request invoked by
+		// loggers and followers
+		joinHandlerAddr = ":13000"
 
-	// get pods in all the namespaces by omitting namespace
-	// Or specify namespace to get pods in particular namespace
-	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
+	} else {
 
-	for _, pod := range pods.Items {
-		fmt.Println("IP:", pod.Status.PodIP)
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			return err
+		}
+
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			return err
+		}
+
+		// get only pods in the current namespace
+		pods, err := clientset.CoreV1().Pods(envPodNamespace).List(metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		//wait for the leader pod IP attribution...
+		time.Sleep(time.Duration(3 * time.Second))
+
+		for _, pod := range pods.Items {
+			// fmt.Println(
+			// 	"Pod #:", i,
+			// 	"IP:", pod.Status.PodIP,
+			// 	"\n====Status:", pod.Status, "\n\n",
+			// )
+
+			// The leader pod status...
+			if strings.Contains(pod.Status.ContainerStatuses[0].Name, "leader") {
+
+				if pod.Status.PodIP == "" {
+					log.Fatalln("forcing a container restart...")
+				}
+
+				// Later send a join request to the leaders IP.
+				joinAddr = pod.Status.PodIP + ":13000"
+			}
+		}
 	}
 	return nil
+}
+
+func loadEnvVariables() {
+
+	var ok bool
+	envPodIP, ok = os.LookupEnv("MY_POD_IP")
+	if !ok {
+		log.Fatalln("could not load environment variable MY_POD_IP")
+	}
+	fmt.Println("retrieved MY_POD_IP:", envPodIP)
+
+	envPodName, ok = os.LookupEnv("MY_POD_NAME")
+	if !ok {
+		log.Fatalln("could not load environment variable MY_POD_NAME")
+	}
+	fmt.Println("retrieved MY_POD_NAME:", envPodName)
+
+	envPodNamespace, ok = os.LookupEnv("MY_POD_NAMESPACE")
+	if !ok {
+		log.Fatalln("could not load environment variable MY_POD_NAMESPACE")
+	}
+	fmt.Println("retrieved MY_POD_NAMESPACE:", envPodNamespace)
+}
+
+func isLeader() bool {
+	return strings.Contains(envPodName, "leader")
 }
