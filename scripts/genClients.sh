@@ -1,6 +1,6 @@
 #!/bin/bash
 
-goSource=raft-demo/client
+goSource=.
 
 if [[ $# -ne 6 ]] && [[ $# -ne 7 ]]
 then

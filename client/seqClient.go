@@ -71,8 +71,19 @@ func (client *Info) Disconnect() {
 // StartUDP initializes UDP listener, used to receive servers repplies
 func (client *Info) StartUDP() error {
 
+	// TODO: used during Kubernetes deploy, fix it later...
+	var udpIP string
+
+	envPodIP, ok := os.LookupEnv("MY_POD_IP")
+	if ok {
+		udpIP = envPodIP
+		fmt.Println("retrieved MY_POD_IP:", envPodIP)
+	} else {
+		envPodIP = client.Localip
+	}
+
 	addr := net.UDPAddr{
-		IP:   net.ParseIP(client.Localip),
+		IP:   net.ParseIP(udpIP),
 		Port: client.Udpport,
 		Zone: "",
 	}
