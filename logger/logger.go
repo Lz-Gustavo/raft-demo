@@ -64,7 +64,7 @@ func NewLogger(uniqueID string) *Logger {
 		go l.ListenStateTransfer(ctx, recovHandlerAddr)
 	}
 
-	logFileName := *logfolder + "log-file-" + uniqueID + ".txt"
+	logFileName := *logfolder + "log-file-" + uniqueID + ".log"
 	l.LogFile = createFile(logFileName)
 
 	if monitoringThroughtput {
@@ -131,7 +131,7 @@ func (lgr *Logger) monitor(ctx context.Context) {
 func (lgr *Logger) UnsafeStateRecover(logIndex uint64, activePipe net.Conn) error {
 
 	// Create a read-only file descriptor
-	logFileName := *logfolder + "log-file-" + logID + ".txt"
+	logFileName := *logfolder + "log-file-" + logID + ".log"
 	fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
 	defer fd.Close()
 

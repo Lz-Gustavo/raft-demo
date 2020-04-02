@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logger-follower
+spec:
+  selector:
+    matchLabels:
+      app: logger
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: logger
+        r3: follower
+    spec:
+      containers:
+        - name: r3-logger
+          image: r3muskteers/logger:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+          command: ["./logger"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: logger-svc
+#   labels:
+#     app: logger
+# spec:
+#   type: NodePort
+#   ports:
+#     - port: 11000
+#       targetPort: 11000
+#       protocol: TCP
+#       name: app-requests
+
+#     - port: 12000
+#       targetPort: 13000
+#       protocol: TCP
+#       name: raft
+
+#   selector:
+#     app: logger
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: logger
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

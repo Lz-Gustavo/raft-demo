@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -24,6 +25,10 @@ var (
 	joinAddr         string
 	recovHandlerAddr string
 	logfolder        *string
+
+	envPodIP        string
+	envPodName      string
+	envPodNamespace string
 )
 
 func init() {
@@ -31,18 +36,27 @@ func init() {
 	if staticIPs {
 		parseIPsFromArgsConfig()
 	} else {
+
+		loadEnvVariables()
+		logID = "node" + strings.Split(envPodIP, ".")[3]
+		raftAddr = envPodIP + ":12000"
+
 		err := requestKubeConfig()
 		if err != nil {
 			log.Fatalln("Failed to retrieve Kubernetes config, err:", err.Error())
 		}
 	}
 
-	flag.StringVar(&logID, "id", "", "Set the logger unique ID")
-	logfolder = flag.String("logfolder", "", "log received commands to a file at specified destination folder")
+	logfolder = flag.String("logfolder", "/tmp/", "log received commands to a file at specified destination folder")
 	flag.Parse()
+
 	if logID == "" {
 		log.Fatalln("must set a logger ID, run with: ./logger -id 'logID'")
 	}
+
+	fmt.Println("ID:", logID)
+	fmt.Println("raft:", raftAddr)
+	fmt.Println("join:", joinAddr)
 }
 
 func main() {
@@ -115,6 +129,7 @@ func countDiffStrInSlice(elements []string) int {
 }
 
 func parseIPsFromArgsConfig() {
+	flag.StringVar(&logID, "id", "", "Set the logger unique ID")
 	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
 	flag.StringVar(&joinAddr, "join", ":13000", "Set join address to an already configured raft node")
 	flag.StringVar(&recovHandlerAddr, "hrecov", "", "Set port id to receive state transfer requests from the application log")
@@ -124,27 +139,60 @@ func parseIPsFromArgsConfig() {
 // join requests to every identified pod during initilization.
 func requestKubeConfig() error {
 
-	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return err
 	}
 
-	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err
 	}
 
-	// get pods in all the namespaces by omitting namespace
-	// Or specify namespace to get pods in particular namespace
-	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
+	// get only pods in the current namespace
+	pods, err := clientset.CoreV1().Pods(envPodNamespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
+	//wait for the leader pod IP attribution...
+	time.Sleep(time.Duration(3 * time.Second))
+
 	for _, pod := range pods.Items {
-		fmt.Println("IP:", pod.Status.PodIP)
+
+		// The leader pod status...
+		if strings.Contains(pod.Status.ContainerStatuses[0].Name, "leader") {
+
+			if pod.Status.PodIP == "" {
+				log.Fatalln("forcing a container restart...")
+			}
+
+			// Later send a join request to the leaders IP.
+			joinAddr = pod.Status.PodIP + ":13000"
+		}
 	}
+
 	return nil
+}
+
+func loadEnvVariables() {
+
+	var ok bool
+	envPodIP, ok = os.LookupEnv("MY_POD_IP")
+	if !ok {
+		log.Fatalln("could not load environment variable MY_POD_IP")
+	}
+	fmt.Println("retrieved MY_POD_IP:", envPodIP)
+
+	envPodName, ok = os.LookupEnv("MY_POD_NAME")
+	if !ok {
+		log.Fatalln("could not load environment variable MY_POD_NAME")
+	}
+	fmt.Println("retrieved MY_POD_NAME:", envPodName)
+
+	envPodNamespace, ok = os.LookupEnv("MY_POD_NAMESPACE")
+	if !ok {
+		log.Fatalln("could not load environment variable MY_POD_NAMESPACE")
+	}
+	fmt.Println("retrieved MY_POD_NAMESPACE:", envPodNamespace)
 }
