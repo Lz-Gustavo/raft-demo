@@ -4,7 +4,20 @@ metadata:
   name: loadgen
 spec:
   template:
+    metadata:
+      labels:
+        app: loadgen
     spec:
+      # Avoid scheduling in kvstore, disk, and logger nodes
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app: kvstore
+                app: diskstorage
+                app: logger
       containers:
       - name: r3-loadgen
         image: r3muskteers/loadgen

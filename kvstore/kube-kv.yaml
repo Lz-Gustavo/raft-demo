@@ -24,7 +24,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["./kvstore"]
-          #args: ["-id", "node0"]
+          #args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -65,7 +65,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["./kvstore"]
-          #args: ["-id", "node0"]
+          #args: ["-logfolder=/tmp/"]
           env:
             # - name: MY_NODE_NAME
             #   valueFrom:

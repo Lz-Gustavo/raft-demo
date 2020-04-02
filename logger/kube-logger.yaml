@@ -13,6 +13,17 @@ spec:
         app: logger
         r3: follower
     spec:
+      # Avoid scheduling in kvstore, disk, and logger nodes
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app: loadgen
+                app: kvstore
+                app: diskstorage
+                app: logger
       containers:
         - name: r3-logger
           image: r3muskteers/logger:latest

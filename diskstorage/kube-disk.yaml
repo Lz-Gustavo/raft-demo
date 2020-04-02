@@ -26,6 +26,7 @@ spec:
           command: ["/bin/sh", "-c"]
           # Creating state file during deploy to avoid large image size
           args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          #args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -68,6 +69,7 @@ spec:
           command: ["/bin/sh", "-c"]
           # Creating state file during deploy to avoid large image size
           args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          #args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
