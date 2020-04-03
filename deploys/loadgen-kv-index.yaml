@@ -21,7 +21,7 @@ spec:
               matchExpressions:
               - key: app
                 operator: In
-                values: [kvstore, diskstorage, logger]
+                values: [kvstore, diskstorage, logger, loadgen]
       containers:
       - name: r3-loadgen
         image: r3muskteers/loadgen
@@ -66,86 +66,6 @@ spec:
             protocol: UDP
           - containerPort: 15019
             protocol: UDP
-          - containerPort: 15020
-            protocol: UDP
-          - containerPort: 15021
-            protocol: UDP
-          - containerPort: 15022
-            protocol: UDP
-          - containerPort: 15023
-            protocol: UDP
-          - containerPort: 15024
-            protocol: UDP
-          - containerPort: 15025
-            protocol: UDP
-          - containerPort: 15026
-            protocol: UDP
-          - containerPort: 15027
-            protocol: UDP
-          - containerPort: 15028
-            protocol: UDP
-          - containerPort: 15029
-            protocol: UDP
-          - containerPort: 15030
-            protocol: UDP
-          - containerPort: 15031
-            protocol: UDP
-          - containerPort: 15032
-            protocol: UDP
-          - containerPort: 15033
-            protocol: UDP
-          - containerPort: 15034
-            protocol: UDP
-          - containerPort: 15035
-            protocol: UDP
-          - containerPort: 15036
-            protocol: UDP
-          - containerPort: 15037
-            protocol: UDP
-          - containerPort: 15038
-            protocol: UDP
-          - containerPort: 15039
-            protocol: UDP
-          - containerPort: 15040
-            protocol: UDP
-          - containerPort: 15041
-            protocol: UDP
-          - containerPort: 15042
-            protocol: UDP
-          - containerPort: 15043
-            protocol: UDP
-          - containerPort: 15044
-            protocol: UDP
-          - containerPort: 15045
-            protocol: UDP
-          - containerPort: 15046
-            protocol: UDP
-          - containerPort: 15047
-            protocol: UDP
-          - containerPort: 15048
-            protocol: UDP
-          - containerPort: 15049
-            protocol: UDP
-          - containerPort: 15050
-            protocol: UDP
-          - containerPort: 15051
-            protocol: UDP
-          - containerPort: 15052
-            protocol: UDP
-          - containerPort: 15053
-            protocol: UDP
-          - containerPort: 15054
-            protocol: UDP
-          - containerPort: 15055
-            protocol: UDP
-          - containerPort: 15056
-            protocol: UDP
-          - containerPort: 15057
-            protocol: UDP
-          - containerPort: 15058
-            protocol: UDP
-          - containerPort: 15059
-            protocol: UDP
 
         command: ["/bin/sh", "-c"]
         args: ["go clean -testcache && go test /go/src/client -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=./"]
@@ -158,5 +78,9 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
+          - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
       restartPolicy: Never
   backoffLimit: 1

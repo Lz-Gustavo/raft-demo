@@ -1,3 +1,5 @@
+# If no MY_POD_NAME is given by env, toml config file is used for app ips
+#
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -17,7 +19,7 @@ spec:
               matchExpressions:
               - key: app
                 operator: In
-                values: [kvstore, diskstorage, logger]
+                values: [kvstore, diskstorage, logger, loadgen]
       containers:
       - name: r3-loadgen
         image: r3muskteers/loadgen
@@ -149,5 +151,9 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
+          - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
       restartPolicy: Never
   backoffLimit: 1
