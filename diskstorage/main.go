@@ -21,7 +21,11 @@ import (
 
 const (
 	stateFilename = "/tmp/store1gb.txt"
-	staticIPs     = false
+
+	// Defines wheter the application should interpret IPs provided on
+	// cmdli args or use its current env POD_IP and ask the other to
+	// Kubernetes sdk
+	staticIPs = false
 )
 
 var (

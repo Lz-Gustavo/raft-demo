@@ -31,6 +31,24 @@ spec:
               protocol: TCP
             - containerPort: 12000
               protocol: TCP
+            - containerPort: 12001
+              protocol: TCP
+            - containerPort: 12002
+              protocol: TCP
+            - containerPort: 12003
+              protocol: TCP
+            - containerPort: 12004
+              protocol: TCP
+            - containerPort: 12005
+              protocol: TCP
+            - containerPort: 12006
+              protocol: TCP
+            - containerPort: 12007
+              protocol: TCP
+            - containerPort: 12008
+              protocol: TCP
+            - containerPort: 12009
+              protocol: TCP
           command: ["./logger"]
           env:
             - name: MY_POD_NAME

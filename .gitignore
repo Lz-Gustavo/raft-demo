@@ -1,5 +1,6 @@
 */checkpoints/
 */*.out
+*/*.log
 
 kvstore/kvstore
 diskstorage/diskstorage

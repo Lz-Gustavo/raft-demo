@@ -51,7 +51,7 @@ type Logger struct {
 }
 
 // NewLogger constructs a new Logger struct and its dependencies
-func NewLogger(uniqueID string) *Logger {
+func NewLogger(id string) *Logger {
 
 	ctx, c := context.WithCancel(context.Background())
 	l := &Logger{
@@ -64,12 +64,12 @@ func NewLogger(uniqueID string) *Logger {
 		go l.ListenStateTransfer(ctx, recovHandlerAddr)
 	}
 
-	logFileName := *logfolder + "log-file-" + uniqueID + ".log"
+	logFileName := *logfolder + "log-file-" + id + ".log"
 	l.LogFile = createFile(logFileName)
 
 	if monitoringThroughtput {
 		l.t = time.NewTimer(time.Second)
-		l.throughput = createFile(logID + "-throughput.out")
+		l.throughput = createFile(id + "-throughput.out")
 		go l.monitor(ctx)
 	}
 	return l
@@ -131,7 +131,8 @@ func (lgr *Logger) monitor(ctx context.Context) {
 func (lgr *Logger) UnsafeStateRecover(logIndex uint64, activePipe net.Conn) error {
 
 	// Create a read-only file descriptor
-	logFileName := *logfolder + "log-file-" + logID + ".log"
+	logFileName := lgr.LogFile.Name()
+
 	fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
 	defer fd.Close()
 

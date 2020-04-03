@@ -31,6 +31,11 @@ spec:
               protocol: TCP
             - containerPort: 12000
               protocol: TCP
+            # Must open one additional for port por each new shared application
+            - containerPort: 12001
+              protocol: TCP
+            - containerPort: 12002
+              protocol: TCP
           command: ["./logger"]
           env:
             - name: MY_POD_NAME

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,13 +18,17 @@ import (
 )
 
 const (
+	// Defines wheter the application should interpret IPs provided on
+	// cmdli args or use its current env POD_IP and ask the other to
+	// Kubernetes sdk
 	staticIPs = false
 )
 
 var (
-	logID            string
-	raftAddr         string
-	joinAddr         string
+	numApps          int
+	logIDs           []string
+	raftAddrs        []string
+	joinAddrs        []string
 	recovHandlerAddr string
 	logfolder        *string
 
@@ -33,57 +39,50 @@ var (
 
 func init() {
 
+	logfolder = flag.String("logfolder", "/tmp/", "log received commands to a file at specified destination folder")
 	if staticIPs {
-		parseIPsFromArgsConfig()
+		err := parseIPsFromArgsConfig()
+		if err != nil {
+			log.Fatalln("could not parse cmdli args, err:", err.Error())
+		}
+
 	} else {
 
-		loadEnvVariables()
-		logID = "log" + strings.Split(envPodIP, ".")[3]
-		raftAddr = envPodIP + ":12000"
-
-		err := requestKubeConfig()
+		err := loadEnvVariables()
 		if err != nil {
-			log.Fatalln("Failed to retrieve Kubernetes config, err:", err.Error())
+			log.Fatalln(err.Error())
+		}
+
+		err = requestKubeConfig()
+		if err != nil {
+			log.Fatalln("failed to retrieve Kubernetes config, err:", err.Error())
+		}
+
+		basePort := 12000
+		for i := range joinAddrs {
+
+			id := "log" + strconv.Itoa(i)
+			logIDs = append(logIDs, id)
+
+			raft := envPodIP + ":" + strconv.Itoa(basePort+i)
+			raftAddrs = append(raftAddrs, raft)
 		}
 	}
-
-	logfolder = flag.String("logfolder", "/tmp/", "log received commands to a file at specified destination folder")
-	flag.Parse()
-
-	if logID == "" {
-		log.Fatalln("must set a logger ID, run with: ./logger -id 'logID'")
-	}
-
-	fmt.Println("ID:", logID)
-	fmt.Println("raft:", raftAddr)
-	fmt.Println("join:", joinAddr)
+	debugLoggerState()
 }
 
 func main() {
 
-	listOfLogIds := strings.Split(logID, ",")
-	numDiffIds := countDiffStrInSlice(listOfLogIds)
-
-	listOfRaftAddrs := strings.Split(raftAddr, ",")
-	numDiffRaft := countDiffStrInSlice(listOfRaftAddrs)
-
-	listOfJoinAddrs := strings.Split(joinAddr, ",")
-	numDiffServices := countDiffStrInSlice(listOfJoinAddrs)
-
-	if numDiffServices != numDiffIds || numDiffIds != numDiffRaft || numDiffRaft != numDiffServices {
-		log.Fatalln("must run with the same number of unique IDs, raft and join addrs: ./logger -id 'X,Y' -raft 'A,B' -join 'W,Z'")
-	}
-
-	loggerInstances := make([]*Logger, numDiffServices)
-	for i := 0; i < numDiffServices; i++ {
+	loggerInstances := make([]*Logger, numApps)
+	for i := 0; i < numApps; i++ {
 		go func(j int) {
 
-			loggerInstances[j] = NewLogger(listOfLogIds[j])
-			if err := loggerInstances[j].StartRaft(listOfLogIds[j], listOfRaftAddrs[j]); err != nil {
+			loggerInstances[j] = NewLogger(logIDs[j])
+			if err := loggerInstances[j].StartRaft(logIDs[j], raftAddrs[j]); err != nil {
 				log.Fatalf("failed to start raft cluster: %s", err.Error())
 			}
-			if err := sendJoinRequest(listOfLogIds[j], listOfRaftAddrs[j], listOfJoinAddrs[j]); err != nil {
-				log.Fatalf("failed to send join request to node at %s: %s", listOfJoinAddrs[j], err.Error())
+			if err := sendJoinRequest(logIDs[j], raftAddrs[j], joinAddrs[j]); err != nil {
+				log.Fatalf("failed to send join request to node at %s: %s", joinAddrs[j], err.Error())
 			}
 		}(i)
 	}
@@ -128,11 +127,34 @@ func countDiffStrInSlice(elements []string) int {
 	return numDiff
 }
 
-func parseIPsFromArgsConfig() {
-	flag.StringVar(&logID, "id", "", "Set the logger unique ID")
-	flag.StringVar(&raftAddr, "raft", ":12000", "Set RAFT consensus bind address")
-	flag.StringVar(&joinAddr, "join", ":13000", "Set join address to an already configured raft node")
+func parseIPsFromArgsConfig() error {
+
+	var logs, raft, joins string
+	flag.StringVar(&logs, "id", "", "Set the logger unique ID")
+	flag.StringVar(&raft, "raft", ":12000", "Set RAFT consensus bind address")
+	flag.StringVar(&joins, "join", ":13000", "Set join address to an already configured raft node")
 	flag.StringVar(&recovHandlerAddr, "hrecov", "", "Set port id to receive state transfer requests from the application log")
+	flag.Parse()
+
+	if logs == "" {
+		return errors.New("must set a logger ID, run with: ./logger -id 'logID'")
+	}
+
+	logIDs = strings.Split(logs, ",")
+	numDiffIds := countDiffStrInSlice(logIDs)
+
+	raftAddrs = strings.Split(raft, ",")
+	numDiffRaft := countDiffStrInSlice(raftAddrs)
+
+	joinAddrs = strings.Split(joins, ",")
+	numDiffServices := countDiffStrInSlice(joinAddrs)
+
+	inconsistentQtd := numDiffServices != numDiffIds || numDiffIds != numDiffRaft || numDiffRaft != numDiffServices
+	if inconsistentQtd {
+		return errors.New("must run with the same number of unique IDs, raft and join addrs: ./logger -id 'X,Y' -raft 'A,B' -join 'W,Z'")
+	}
+	numApps = numDiffIds
+	return nil
 }
 
 // requestKubeConfig with a different implementation than the other applications, submmiting
@@ -168,31 +190,49 @@ func requestKubeConfig() error {
 			}
 
 			// Later send a join request to the leaders IP.
-			joinAddr = pod.Status.PodIP + ":13000"
+			joinAddrs = append(joinAddrs, pod.Status.PodIP+":13000")
 		}
 	}
 
+	numApps = len(joinAddrs)
+	if numApps == 0 {
+		log.Fatalln("could not retrieve any leader address, restarting...")
+	}
 	return nil
 }
 
-func loadEnvVariables() {
+func loadEnvVariables() error {
 
 	var ok bool
 	envPodIP, ok = os.LookupEnv("MY_POD_IP")
 	if !ok {
-		log.Fatalln("could not load environment variable MY_POD_IP")
+		return errors.New("could not load environment variable MY_POD_IP")
 	}
 	fmt.Println("retrieved MY_POD_IP:", envPodIP)
 
 	envPodName, ok = os.LookupEnv("MY_POD_NAME")
 	if !ok {
-		log.Fatalln("could not load environment variable MY_POD_NAME")
+		return errors.New("could not load environment variable MY_POD_NAME")
 	}
 	fmt.Println("retrieved MY_POD_NAME:", envPodName)
 
 	envPodNamespace, ok = os.LookupEnv("MY_POD_NAMESPACE")
 	if !ok {
-		log.Fatalln("could not load environment variable MY_POD_NAMESPACE")
+		return errors.New("could not load environment variable MY_POD_NAMESPACE")
 	}
 	fmt.Println("retrieved MY_POD_NAMESPACE:", envPodNamespace)
+	return nil
+}
+
+func debugLoggerState() {
+	for i := 0; i < numApps; i++ {
+		fmt.Println(
+			"==========",
+			"\nApplication #:", i,
+			"\nloggerID:", logIDs[i],
+			"\nraft:", raftAddrs[i],
+			"\nappIP:", joinAddrs[i],
+			"\n==========",
+		)
+	}
 }

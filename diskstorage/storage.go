@@ -27,7 +27,7 @@ const (
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
-	logLevel            = "WARN"
+	logLevel            = "INFO"
 
 	// Used in catastrophic fault models, where crash faults must be recoverable even if
 	// all nodes presented in the consensus cluster are down. Always set to false in any
