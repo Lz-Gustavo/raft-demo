@@ -13,6 +13,15 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/Lz-Gustavo/journey/pb"
 	"github.com/golang/protobuf/proto"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+)
+
+var (
+	envPodIP        string
+	envPodName      string
+	envPodNamespace string
 )
 
 // Info stores the server configuration
@@ -37,9 +46,26 @@ type Info struct {
 func New(config string) (*Info, error) {
 
 	info := &Info{}
-	_, err := toml.DecodeFile(config, info)
-	if err != nil {
-		return nil, err
+
+	kubeIps := checkKubernetesEnv()
+	if kubeIps != nil {
+
+		fmt.Println("Initializing by kubernetes config...")
+		info.Rep = len(kubeIps)
+		info.SvrIps = kubeIps
+		info.Udpport = 15000
+		info.ThinkingTimeMsec = 10
+
+		// will be later overwritten by POD_IP...
+		info.Localip = "127.0.0.1"
+
+	} else {
+
+		fmt.Println("Initializing by toml config file...")
+		_, err := toml.DecodeFile(config, info)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return info, nil
 }
@@ -238,4 +264,85 @@ func main() {
 		repply, _ := cluster.ReadUDP()
 		fmt.Printf("Received message: %s", repply)
 	}
+}
+
+func checkKubernetesEnv() []string {
+
+	var ok bool
+	envPodName, ok = os.LookupEnv("MY_POD_NAME")
+
+	// If MY_POD_NAME is set, check the index name suffix
+	if ok {
+		fmt.Println("retrieved MY_POD_NAME:", envPodName)
+
+		nameTags := strings.Split(envPodName, "-")
+		var ind int
+		var err error
+
+		// e.g. loadgen-app-1
+		if len(nameTags) == 3 {
+			ind, err = strconv.Atoi(nameTags[2])
+			if err != nil {
+				fmt.Println("could not parse env index")
+				ind = -1
+			}
+		} else {
+			ind = -1
+		}
+		ips, err := getAppsFromKube(ind)
+		if err != nil {
+			log.Fatalln("could not init kubernetes config, err:", err.Error())
+		}
+		return ips
+	}
+	return nil
+}
+
+func getAppsFromKube(podIndex int) ([]string, error) {
+
+	var ok bool
+	envPodNamespace, ok = os.LookupEnv("MY_POD_NAMESPACE")
+	if !ok {
+		envPodNamespace = "default"
+	}
+	fmt.Println("retrieved MY_POD_NAMESPACE:", envPodNamespace)
+
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	// get only pods in the current namespace
+	pods, err := clientset.CoreV1().Pods(envPodNamespace).List(metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	podFilter := ""
+
+	// Search for matching indexes
+	if podIndex > -1 {
+		podFilter = "-" + strconv.Itoa(podIndex)
+		fmt.Println("Now searching for pods with", podFilter, "suffix pattern")
+	}
+
+	podIps := make([]string, 0)
+	for _, pod := range pods.Items {
+
+		if strings.Contains(pod.Status.ContainerStatuses[0].Name, podFilter) {
+
+			if pod.Status.PodIP == "" {
+				log.Fatalln("forcing a container restart...")
+			}
+
+			ip := pod.Status.PodIP + ":11000"
+			podIps = append(podIps, ip)
+		}
+	}
+	return podIps, nil
 }
