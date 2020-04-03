@@ -38,7 +38,7 @@ func init() {
 	} else {
 
 		loadEnvVariables()
-		logID = "node" + strings.Split(envPodIP, ".")[3]
+		logID = "log" + strings.Split(envPodIP, ".")[3]
 		raftAddr = envPodIP + ":12000"
 
 		err := requestKubeConfig()

@@ -12,6 +12,10 @@ This repository organizes scripts, papers, and experiment applications developed
 
 	Useful scripts to conduct experimentations using **kvstore** and **diskstorage** applications.
 
+* **deploys**
+
+	TODO
+
 ## Applications
 
 * **kvstore**

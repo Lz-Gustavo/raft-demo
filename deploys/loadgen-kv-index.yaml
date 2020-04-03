@@ -1,14 +1,18 @@
+# Modify the -n suffix for different kv instances
+#
+# This job stimulates kvstore application with the following params:
+# -clients=9 -time=60 -key=1000000 -data=1 -log=./
+#
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: loadgen
+  name: loadgen-kv-1
 spec:
   template:
     metadata:
       labels:
-        app: loadgen
+        app: loadgen-kv-1
     spec:
-      # Avoid scheduling in kvstore, disk, and logger nodes
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -142,9 +146,14 @@ spec:
             protocol: UDP
           - containerPort: 15059
             protocol: UDP
-        command: ["/go/src/client/run.sh"]
-        args: ["./", "1", "/go/src/client/kube-config.toml"]
+
+        command: ["/bin/sh", "-c"]
+        args: ["go clean -testcache && go test /go/src/client -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=./"]
         env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           - name: MY_POD_IP
             valueFrom:
               fieldRef:
