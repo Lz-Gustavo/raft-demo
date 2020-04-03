@@ -28,7 +28,7 @@ spec:
                 operator: In
                 values: [leader]
       containers:
-        - name: r3-kvstore-leader
+        - name: kvstore-leader-1
           image: r3muskteers/kvstore:latest
           ports:
             - containerPort: 11000
@@ -79,7 +79,7 @@ spec:
                 operator: In
                 values: [alpha]
       containers:
-        - name: r3-kvstore
+        - name: kvstore-follower-1
           image: r3muskteers/kvstore:latest
           ports:
             - containerPort: 11000
@@ -135,7 +135,7 @@ spec:
                 operator: In
                 values: [leader]
       containers:
-        - name: r3-kvstore-leader
+        - name: kvstore-leader-2
           image: r3muskteers/kvstore:latest
           ports:
             - containerPort: 11000
@@ -186,7 +186,7 @@ spec:
                 operator: In
                 values: [beta]
       containers:
-        - name: r3-kvstore
+        - name: kvstore-follower-2
           image: r3muskteers/kvstore:latest
           ports:
             - containerPort: 11000
@@ -241,7 +241,7 @@ spec:
                 operator: In
                 values: [leader]
       containers:
-        - name: r3-kvstore-leader
+        - name: kvstore-leader-3
           image: r3muskteers/kvstore:latest
           ports:
             - containerPort: 11000
@@ -291,7 +291,7 @@ spec:
                 operator: In
                 values: [gama]
       containers:
-        - name: r3-kvstore
+        - name: kvstore-follower-3
           image: r3muskteers/kvstore:latest
           ports:
             - containerPort: 11000

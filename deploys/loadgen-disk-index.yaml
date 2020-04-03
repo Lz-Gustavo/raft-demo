@@ -23,7 +23,7 @@ spec:
                 operator: In
                 values: [kvstore, diskstorage, logger, loadgen]
       containers:
-      - name: r3-loadgen
+      - name: loadgen-disk-1
         image: r3muskteers/loadgen
         ports:
           - containerPort: 15000
@@ -68,7 +68,7 @@ spec:
             protocol: UDP
 
         command: ["/bin/sh", "-c"]
-        args: ["go clean -testcache && go test /go/src/client -run TestClientTimeKvstore -count 1 -clients=2 -time=60 -key=1000000 -data=1 -log=./"]
+        args: ["go clean -testcache && go test /go/src/client -run TestClientTimeKvstore -count 1 -clients=2 -time=60 -key=1000000 -data=1 -log=1"]
         env:
           - name: MY_POD_NAME
             valueFrom:
@@ -79,8 +79,8 @@ spec:
               fieldRef:
                 fieldPath: status.podIP
           - name: MY_POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
       restartPolicy: Never
   backoffLimit: 1

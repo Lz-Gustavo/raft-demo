@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +37,7 @@ var (
 	envPodIP        string
 	envPodName      string
 	envPodNamespace string
+	envPodIndex     int
 )
 
 func init() {
@@ -198,19 +200,31 @@ func requestKubeConfig() error {
 
 		//wait for the leader pod IP attribution...
 		time.Sleep(time.Duration(3 * time.Second))
+		leaderTag := "leader"
+
+		// Search for only the leader matching index
+		if envPodIndex > -1 {
+			leaderTag = "leader-" + strconv.Itoa(envPodIndex)
+			fmt.Println("Now searching for the '", leaderTag, "' leader (by CONTAINER_NAME, not POD_NAME)")
+		} else {
+			fmt.Println("could not parse env index, joining any -leader...")
+		}
 
 		for _, pod := range pods.Items {
 
 			// The leader pod status...
-			if strings.Contains(pod.Status.ContainerStatuses[0].Name, "leader") {
+			if strings.Contains(pod.Status.ContainerStatuses[0].Name, leaderTag) {
 
 				if pod.Status.PodIP == "" {
-					log.Fatalln("forcing a container restart...")
+					log.Fatalln("leader has no IP, forcing a container restart...")
 				}
 
 				// Later send a join request to the leaders IP.
 				joinAddr = pod.Status.PodIP + ":13000"
 			}
+		}
+		if joinAddr == "" {
+			log.Fatalln("could not retrieve any leader address, restarting...")
 		}
 	}
 	return nil
@@ -225,17 +239,30 @@ func loadEnvVariables() {
 	}
 	fmt.Println("retrieved MY_POD_IP:", envPodIP)
 
+	envPodNamespace, ok = os.LookupEnv("MY_POD_NAMESPACE")
+	if !ok {
+		log.Fatalln("could not load environment variable MY_POD_NAMESPACE")
+	}
+	fmt.Println("retrieved MY_POD_NAMESPACE:", envPodNamespace)
+
 	envPodName, ok = os.LookupEnv("MY_POD_NAME")
 	if !ok {
 		log.Fatalln("could not load environment variable MY_POD_NAME")
 	}
 	fmt.Println("retrieved MY_POD_NAME:", envPodName)
 
-	envPodNamespace, ok = os.LookupEnv("MY_POD_NAMESPACE")
-	if !ok {
-		log.Fatalln("could not load environment variable MY_POD_NAMESPACE")
+	nameTags := strings.Split(envPodName, "-")
+	var err error
+
+	// e.g. loadgen-app-1-hashcode
+	if len(nameTags) >= 3 {
+		envPodIndex, err = strconv.Atoi(nameTags[2])
+		if err != nil {
+			envPodIndex = -1
+		}
+	} else {
+		envPodIndex = -1
 	}
-	fmt.Println("retrieved MY_POD_NAMESPACE:", envPodNamespace)
 }
 
 func isLeader() bool {

@@ -279,8 +279,8 @@ func checkKubernetesEnv() []string {
 		var ind int
 		var err error
 
-		// e.g. loadgen-app-1
-		if len(nameTags) == 3 {
+		// e.g. loadgen-app-1-hashcode
+		if len(nameTags) >= 3 {
 			ind, err = strconv.Atoi(nameTags[2])
 			if err != nil {
 				fmt.Println("could not parse env index")

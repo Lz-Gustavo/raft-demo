@@ -28,7 +28,7 @@ spec:
                 operator: In
                 values: [leader]
       containers:
-        - name: r3-diskstorage-leader
+        - name: diskstorage-leader-1
           image: r3muskteers/diskstorage:latest
           ports:
             - containerPort: 11000
@@ -80,7 +80,7 @@ spec:
                 operator: In
                 values: [alpha]
       containers:
-        - name: r3-diskstorage
+        - name: diskstorage-follower-1
           image: r3muskteers/diskstorage:latest
           ports:
             - containerPort: 11000
@@ -137,7 +137,7 @@ spec:
                 operator: In
                 values: [leader]
       containers:
-        - name: r3-diskstorage-leader
+        - name: diskstorage-leader-2
           image: r3muskteers/diskstorage:latest
           ports:
             - containerPort: 11000
@@ -189,7 +189,7 @@ spec:
                 operator: In
                 values: [beta]
       containers:
-        - name: r3-diskstorage
+        - name: diskstorage-follower-2
           image: r3muskteers/diskstorage:latest
           ports:
             - containerPort: 11000
@@ -245,7 +245,7 @@ spec:
                 operator: In
                 values: [leader]
       containers:
-        - name: r3-diskstorage-leader
+        - name: diskstorage-leader-3
           image: r3muskteers/diskstorage:latest
           ports:
             - containerPort: 11000
@@ -296,7 +296,7 @@ spec:
                 operator: In
                 values: [gama]
       containers:
-        - name: r3-diskstorage
+        - name: diskstorage-follower-3
           image: r3muskteers/diskstorage:latest
           ports:
             - containerPort: 11000

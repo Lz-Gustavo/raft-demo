@@ -22,7 +22,7 @@ import (
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
-	logLevel            = "ERROR"
+	logLevel            = "WARN"
 	compressValues      = false
 
 	preInitialize = true
