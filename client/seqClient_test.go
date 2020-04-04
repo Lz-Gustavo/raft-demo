@@ -27,10 +27,10 @@ var (
 var storeValue string
 
 const (
-	// One client has a '1/measureThroughput' chance to capture the latency of it's next requisition.
-	measureThroughput int = 100
+	// One client has a '1/measureChance' chance to capture latency of it's next requisition.
+	measureChance int = 100
 
-	// Just the 'watcherIndex'th client will be recording latency based on 'measureThroughput'.
+	// Just the 'watcherIndex'th client will be recording latency based on 'measureChance'.
 	watcherIndex int = 0
 )
 
@@ -131,7 +131,7 @@ func TestNumMessagesKvstore(b *testing.T) {
 
 				op = rand.Intn(2)
 				if chosenClient && Cfg.mustLog {
-					coinThroughtput = rand.Intn(measureThroughput)
+					coinThroughtput = rand.Intn(measureChance)
 					if coinThroughtput == 0 {
 						flagStopwatch = true
 						start = time.Now()
@@ -279,7 +279,7 @@ func TestClientTimeKvstore(b *testing.T) {
 				}
 
 				if chosenClient && Cfg.mustLog {
-					coinThroughtput = rand.Intn(measureThroughput)
+					coinThroughtput = rand.Intn(measureChance)
 					if coinThroughtput == 0 {
 						flagStopwatch = true
 						start = time.Now()

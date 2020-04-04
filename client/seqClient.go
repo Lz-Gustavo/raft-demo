@@ -56,8 +56,13 @@ func New(config string) (*Info, error) {
 		info.Udpport = 15000
 		info.ThinkingTimeMsec = 10
 
-		// will be later overwritten by POD_IP...
-		info.Localip = "127.0.0.1"
+		envPodIP, ok := os.LookupEnv("MY_POD_IP")
+		if ok {
+			info.Localip = envPodIP
+			fmt.Println("retrieved MY_POD_IP:", envPodIP)
+		} else {
+			log.Fatal("could not retrieve MY_POD_IP")
+		}
 
 	} else {
 
@@ -67,6 +72,14 @@ func New(config string) (*Info, error) {
 			return nil, err
 		}
 	}
+
+	fmt.Println(
+		"==========\n",
+		"--Client connection info--",
+		"\nappIP:", info.Localip, ":", info.Udpport,
+		"\nSending to replicas:", info.SvrIps,
+		"\n==========",
+	)
 	return info, nil
 }
 
@@ -97,19 +110,8 @@ func (client *Info) Disconnect() {
 // StartUDP initializes UDP listener, used to receive servers repplies
 func (client *Info) StartUDP() error {
 
-	// TODO: used during Kubernetes deploy, fix it later...
-	var udpIP string
-
-	envPodIP, ok := os.LookupEnv("MY_POD_IP")
-	if ok {
-		udpIP = envPodIP
-		fmt.Println("retrieved MY_POD_IP:", envPodIP)
-	} else {
-		envPodIP = client.Localip
-	}
-
 	addr := net.UDPAddr{
-		IP:   net.ParseIP(udpIP),
+		IP:   net.ParseIP(client.Localip),
 		Port: client.Udpport,
 		Zone: "",
 	}

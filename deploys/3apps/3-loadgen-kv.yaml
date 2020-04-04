@@ -1,0 +1,279 @@
+# Modify the -n suffix for different kv instances
+#
+# This job stimulates 3 kvstore applications with the following params:
+# -clients=9 -time=60 -key=1000000 -data=1 -log=./
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: loadgen-kv-1
+spec:
+  template:
+    metadata:
+      labels:
+        app: loadgen-kv-1
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: [logger, loadgen]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [alpha]
+      containers:
+      - name: loadgen-kv-1
+        image: r3muskteers/loadgen
+        ports:
+          - containerPort: 15000
+            protocol: UDP
+          - containerPort: 15001
+            protocol: UDP
+          - containerPort: 15002
+            protocol: UDP
+          - containerPort: 15003
+            protocol: UDP
+          - containerPort: 15004
+            protocol: UDP
+          - containerPort: 15005
+            protocol: UDP
+          - containerPort: 15006
+            protocol: UDP
+          - containerPort: 15007
+            protocol: UDP
+          - containerPort: 15008
+            protocol: UDP
+          - containerPort: 15009
+            protocol: UDP
+          - containerPort: 15010
+            protocol: UDP
+          - containerPort: 15011
+            protocol: UDP
+          - containerPort: 15012
+            protocol: UDP
+          - containerPort: 15013
+            protocol: UDP
+          - containerPort: 15014
+            protocol: UDP
+          - containerPort: 15015
+            protocol: UDP
+          - containerPort: 15016
+            protocol: UDP
+          - containerPort: 15017
+            protocol: UDP
+          - containerPort: 15018
+            protocol: UDP
+          - containerPort: 15019
+            protocol: UDP
+
+        command: ["/bin/sh", "-c"]
+        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
+        env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: MY_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      restartPolicy: Never
+  backoffLimit: 0
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: loadgen-kv-2
+spec:
+  template:
+    metadata:
+      labels:
+        app: loadgen-kv-2
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: [logger, loadgen]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [beta]
+      containers:
+      - name: loadgen-kv-2
+        image: r3muskteers/loadgen
+        ports:
+          - containerPort: 15000
+            protocol: UDP
+          - containerPort: 15001
+            protocol: UDP
+          - containerPort: 15002
+            protocol: UDP
+          - containerPort: 15003
+            protocol: UDP
+          - containerPort: 15004
+            protocol: UDP
+          - containerPort: 15005
+            protocol: UDP
+          - containerPort: 15006
+            protocol: UDP
+          - containerPort: 15007
+            protocol: UDP
+          - containerPort: 15008
+            protocol: UDP
+          - containerPort: 15009
+            protocol: UDP
+          - containerPort: 15010
+            protocol: UDP
+          - containerPort: 15011
+            protocol: UDP
+          - containerPort: 15012
+            protocol: UDP
+          - containerPort: 15013
+            protocol: UDP
+          - containerPort: 15014
+            protocol: UDP
+          - containerPort: 15015
+            protocol: UDP
+          - containerPort: 15016
+            protocol: UDP
+          - containerPort: 15017
+            protocol: UDP
+          - containerPort: 15018
+            protocol: UDP
+          - containerPort: 15019
+            protocol: UDP
+
+        command: ["/bin/sh", "-c"]
+        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
+        env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: MY_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      restartPolicy: Never
+  backoffLimit: 0
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: loadgen-kv-3
+spec:
+  template:
+    metadata:
+      labels:
+        app: loadgen-kv-3
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values: [logger, loadgen]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [gama]
+      containers:
+      - name: loadgen-kv-3
+        image: r3muskteers/loadgen
+        ports:
+          - containerPort: 15000
+            protocol: UDP
+          - containerPort: 15001
+            protocol: UDP
+          - containerPort: 15002
+            protocol: UDP
+          - containerPort: 15003
+            protocol: UDP
+          - containerPort: 15004
+            protocol: UDP
+          - containerPort: 15005
+            protocol: UDP
+          - containerPort: 15006
+            protocol: UDP
+          - containerPort: 15007
+            protocol: UDP
+          - containerPort: 15008
+            protocol: UDP
+          - containerPort: 15009
+            protocol: UDP
+          - containerPort: 15010
+            protocol: UDP
+          - containerPort: 15011
+            protocol: UDP
+          - containerPort: 15012
+            protocol: UDP
+          - containerPort: 15013
+            protocol: UDP
+          - containerPort: 15014
+            protocol: UDP
+          - containerPort: 15015
+            protocol: UDP
+          - containerPort: 15016
+            protocol: UDP
+          - containerPort: 15017
+            protocol: UDP
+          - containerPort: 15018
+            protocol: UDP
+          - containerPort: 15019
+            protocol: UDP
+
+        command: ["/bin/sh", "-c"]
+        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
+        env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: MY_POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: MY_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      restartPolicy: Never
+  backoffLimit: 0
