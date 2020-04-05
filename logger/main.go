@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
@@ -58,10 +59,19 @@ func init() {
 			log.Fatalln("failed to retrieve Kubernetes config, err:", err.Error())
 		}
 
+		// Raft participants must posses an unique identifier within the cluster,
+		// this is a non optional way to assure that. Considering that a logger
+		// gets a rand 'a', if another logger gets a baserand 'b'
+		//
+		//   b < (a - numApplications) for all b in {0..RAND_MAX}
+		//
+		// must always be satisfied to avoid matching intervals for logID values.
+		baseRand := rand.Intn(10000)
+
 		basePort := 12000
 		for i := range joinAddrs {
 
-			id := "log" + strconv.Itoa(i)
+			id := "log" + strconv.Itoa(baseRand+i)
 			logIDs = append(logIDs, id)
 
 			raft := envPodIP + ":" + strconv.Itoa(basePort+i)
