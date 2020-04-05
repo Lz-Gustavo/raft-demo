@@ -24,6 +24,12 @@ spec:
               - key: ind
                 operator: In
                 values: [alpha]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
               - key: r3
                 operator: In
                 values: [leader]
@@ -131,6 +137,12 @@ spec:
               - key: ind
                 operator: In
                 values: [beta]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
               - key: r3
                 operator: In
                 values: [leader]
@@ -237,6 +249,12 @@ spec:
               - key: ind
                 operator: In
                 values: [gama]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
               - key: r3
                 operator: In
                 values: [leader]

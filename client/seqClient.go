@@ -46,7 +46,6 @@ type Info struct {
 func New(config string) (*Info, error) {
 
 	info := &Info{}
-
 	kubeIps := checkKubernetesEnv()
 	if kubeIps != nil {
 
@@ -55,15 +54,7 @@ func New(config string) (*Info, error) {
 		info.SvrIps = kubeIps
 		info.Udpport = 15000
 		info.ThinkingTimeMsec = 10
-
-		envPodIP, ok := os.LookupEnv("MY_POD_IP")
-		if ok {
-			info.Localip = envPodIP
-			fmt.Println("retrieved MY_POD_IP:", envPodIP)
-		} else {
-			log.Fatal("could not retrieve MY_POD_IP")
-		}
-
+		info.Localip = envPodIP
 	} else {
 
 		fmt.Println("Initializing by toml config file...")
@@ -275,8 +266,6 @@ func checkKubernetesEnv() []string {
 
 	// If MY_POD_NAME is set, check the index name suffix
 	if ok {
-		fmt.Println("retrieved MY_POD_NAME:", envPodName)
-
 		nameTags := strings.Split(envPodName, "-")
 		var ind int
 		var err error
@@ -307,7 +296,12 @@ func getAppsFromKube(podIndex int) ([]string, error) {
 	if !ok {
 		envPodNamespace = "default"
 	}
-	fmt.Println("retrieved MY_POD_NAMESPACE:", envPodNamespace)
+
+	// capturing own POD_IP to ignore it on search
+	envPodIP, ok = os.LookupEnv("MY_POD_IP")
+	if !ok {
+		envPodIP = "127.0.0.1"
+	}
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -342,8 +336,11 @@ func getAppsFromKube(podIndex int) ([]string, error) {
 				log.Fatalln("forcing a container restart...")
 			}
 
-			ip := pod.Status.PodIP + ":11000"
-			podIps = append(podIps, ip)
+			// ignore own IP...
+			if strings.Compare(pod.Status.PodIP, envPodIP) != 0 {
+				ip := pod.Status.PodIP + ":11000"
+				podIps = append(podIps, ip)
+			}
 		}
 	}
 	return podIps, nil

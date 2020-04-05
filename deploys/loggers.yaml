@@ -23,12 +23,19 @@ spec:
               - key: app
                 operator: In
                 values: [loadgen, kvstore, diskstorage, logger]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: r3
+                operator: In
+                values: [leader]
       containers:
         - name: r3-logger
           image: r3muskteers/logger:latest
           ports:
-            - containerPort: 11000
-              protocol: TCP
             - containerPort: 12000
               protocol: TCP
             - containerPort: 12001
