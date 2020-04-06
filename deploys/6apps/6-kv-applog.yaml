@@ -232,11 +232,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kvstore-leader-3
+  ind: gama
 spec:
   selector:
     matchLabels:
       app: kvstore
-      ind: gama
   replicas: 1
   template:
     metadata:
@@ -293,11 +293,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kvstore-follower-3
+  ind: gama
 spec:
   selector:
     matchLabels:
       app: kvstore
-      ind: gama
   replicas: 2
   template:
     metadata:
@@ -341,6 +341,350 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
 
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvstore-leader-4
+spec:
+  selector:
+    matchLabels:
+      app: kvstore
+      ind: delta
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kvstore
+        ind: delta
+        r3: leader
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [delta]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: r3
+                operator: In
+                values: [leader]
+      containers:
+        - name: kvstore-leader-4
+          image: r3muskteers/kvstore:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvstore-follower-4
+spec:
+  selector:
+    matchLabels:
+      app: kvstore
+      ind: delta
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: kvstore
+        ind: delta
+        r3: follower
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [delta]
+      containers:
+        - name: kvstore-follower-4
+          image: r3muskteers/kvstore:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvstore-leader-5
+spec:
+  selector:
+    matchLabels:
+      app: kvstore
+      ind: epsilon
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kvstore
+        ind: epsilon
+        r3: leader
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [epsilon]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: r3
+                operator: In
+                values: [leader]
+      containers:
+        - name: kvstore-leader-5
+          image: r3muskteers/kvstore:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvstore-follower-5
+spec:
+  selector:
+    matchLabels:
+      app: kvstore
+      ind: epsilon
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: kvstore
+        ind: epsilon
+        r3: follower
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [epsilon]
+      containers:
+        - name: kvstore-follower-5
+          image: r3muskteers/kvstore:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvstore-leader-6
+spec:
+  selector:
+    matchLabels:
+      app: kvstore
+      ind: zeta
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kvstore
+        ind: zeta
+        r3: leader
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [zeta]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: r3
+                operator: In
+                values: [leader]
+      containers:
+        - name: kvstore-leader-6
+          image: r3muskteers/kvstore:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvstore-follower-6
+spec:
+  selector:
+    matchLabels:
+      app: kvstore
+      ind: zeta
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: kvstore
+        ind: zeta
+        r3: follower
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [zeta]
+      containers:
+        - name: kvstore-follower-6
+          image: r3muskteers/kvstore:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1

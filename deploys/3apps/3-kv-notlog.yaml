@@ -232,6 +232,7 @@ spec:
   selector:
     matchLabels:
       app: kvstore
+      ind: gama
   replicas: 1
   template:
     metadata:
@@ -291,6 +292,7 @@ spec:
   selector:
     matchLabels:
       app: kvstore
+      ind: gama
   replicas: 2
   template:
     metadata:

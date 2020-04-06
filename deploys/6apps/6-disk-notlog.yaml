@@ -232,11 +232,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: diskstorage-leader-3
+  ind: gama
 spec:
   selector:
     matchLabels:
       app: diskstorage
-      ind: gama
   replicas: 1
   template:
     metadata:
@@ -293,11 +293,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: diskstorage-follower-3
+  ind: gama
 spec:
   selector:
     matchLabels:
       app: diskstorage
-      ind: gama
   replicas: 2
   template:
     metadata:
@@ -340,6 +340,352 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-leader-4
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+      ind: delta
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        ind: delta
+        r3: leader
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [delta]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: r3
+                operator: In
+                values: [leader]
+      containers:
+        - name: diskstorage-leader-4
+          image: r3muskteers/diskstorage:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-follower-4
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+      ind: delta
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        ind: delta
+        r3: follower
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [delta]
+      containers:
+        - name: diskstorage-follower-4
+          image: r3muskteers/diskstorage:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-leader-5
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+      ind: epsilon
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        ind: epsilon
+        r3: leader
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [epsilon]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: r3
+                operator: In
+                values: [leader]
+      containers:
+        - name: diskstorage-leader-5
+          image: r3muskteers/diskstorage:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-follower-5
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+      ind: epsilon
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        ind: epsilon
+        r3: follower
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [epsilon]
+      containers:
+        - name: diskstorage-follower-5
+          image: r3muskteers/diskstorage:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-leader-6
+  ind: zeta
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        ind: zeta
+        r3: leader
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [zeta]
+
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: r3
+                operator: In
+                values: [leader]
+      containers:
+        - name: diskstorage-leader-6
+          image: r3muskteers/diskstorage:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-follower-6
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+      ind: zeta
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        ind: zeta
+        r3: follower
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchExpressions:
+              - key: ind
+                operator: In
+                values: [zeta]
+      containers:
+        - name: diskstorage-follower-6
+          image: r3muskteers/diskstorage:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
 
 
 ---
