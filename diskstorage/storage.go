@@ -74,7 +74,11 @@ func New(ctx context.Context, storeFilename string) (*Store, error) {
 	s.storeValue = []byte(strings.Repeat("@", s.valueSize))
 
 	var err error
-	s.Local, err = os.OpenFile(storeFilename, os.O_SYNC|os.O_RDWR, 0644)
+	if catastrophicFaults {
+		s.Local, err = os.OpenFile(storeFilename, os.O_SYNC|os.O_RDWR, 0644)
+	} else {
+		s.Local, err = os.OpenFile(storeFilename, os.O_RDWR, 0644)
+	}
 	if err != nil {
 		return nil, err
 	}

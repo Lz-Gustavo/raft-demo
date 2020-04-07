@@ -1,7 +1,7 @@
 # Modify the -n suffix for different kv instances
 #
 # This job stimulates 3 kvstore applications with the following params:
-# -clients=9 -time=60 -key=1000000 -data=1 -log=./
+# -clients=8 -time=60 -key=1000000 -data=1 -log=./
 #
 apiVersion: batch/v1
 kind: Job
@@ -77,7 +77,7 @@ spec:
             protocol: UDP
 
         command: ["/bin/sh", "-c"]
-        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
+        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=8 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
         env:
           - name: MY_POD_NAME
             valueFrom:
@@ -169,7 +169,7 @@ spec:
             protocol: UDP
 
         command: ["/bin/sh", "-c"]
-        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
+        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=8 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
         env:
           - name: MY_POD_NAME
             valueFrom:
@@ -261,7 +261,7 @@ spec:
             protocol: UDP
 
         command: ["/bin/sh", "-c"]
-        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=9 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
+        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=8 -time=60 -key=1000000 -data=1 -log=1 && echo 'loadgen finished!'"]
         env:
           - name: MY_POD_NAME
             valueFrom:

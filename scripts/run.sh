@@ -9,7 +9,7 @@ app=kvstore
 #clientsFolders=(1 4 7 10 13 16 19)
 
 numClients=(1 4 7 10 13 16 19)
-#numClients=(1 2 3 4 5 6 7)
+#numClients=(1 3 5 7 9 11 13)
 
 dataSizeOptions=(1) #0: 128B, 1: 1KB, 2: 4KB
 execTime=60 #seconds
