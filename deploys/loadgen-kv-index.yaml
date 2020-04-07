@@ -83,4 +83,4 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
       restartPolicy: Never
-  backoffLimit: 1
+  backoffLimit: 0

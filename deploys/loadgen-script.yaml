@@ -1,4 +1,5 @@
-# If no MY_POD_NAME is given by env, toml config file is used for app ips
+# If no MY_POD_NAME is given by env, toml config file is used for app ips.
+# If MY_POD_NAME is defined without a '-index' identifier (e.g. loadgen-kv-3), than all pods will be assigned
 #
 apiVersion: batch/v1
 kind: Job
@@ -147,6 +148,10 @@ spec:
         command: ["/go/src/client/run.sh"]
         args: ["./", "1", "/go/src/client/kube-config.toml"]
         env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           - name: MY_POD_IP
             valueFrom:
               fieldRef:
@@ -156,4 +161,4 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
       restartPolicy: Never
-  backoffLimit: 1
+  backoffLimit: 0

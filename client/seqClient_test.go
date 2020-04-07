@@ -103,18 +103,18 @@ func TestNumMessagesKvstore(b *testing.T) {
 			var err error
 			clients[j], err = New(*configFilename)
 			if err != nil {
-				b.Fatalf("failed to find config: %s", err.Error())
+				log.Fatalf("failed to find config: %s", err.Error())
 			}
 
 			err = clients[j].Connect()
 			if err != nil {
-				b.Fatalf("failed to connect to cluster: %s", err.Error())
+				log.Fatalf("failed to connect to cluster: %s", err.Error())
 			}
 
 			clients[j].Udpport = 15000 + j
 			err = clients[j].StartUDP()
 			if err != nil {
-				b.Fatalf("failed to start UDP socket: %s", err.Error())
+				log.Fatalf("failed to start UDP socket: %s", err.Error())
 			}
 
 			// Control variables
@@ -247,18 +247,18 @@ func TestClientTimeKvstore(b *testing.T) {
 			var err error
 			clients[j], err = New(*configFilename)
 			if err != nil {
-				b.Fatalf("failed to find config: %s", err.Error())
+				log.Fatalf("failed to find config: %s", err.Error())
 			}
 
 			err = clients[j].Connect()
 			if err != nil {
-				b.Fatalf("failed to connect to cluster: %s", err.Error())
+				log.Fatalf("failed to connect to cluster: %s", err.Error())
 			}
 
 			clients[j].Udpport = 15000 + j
 			err = clients[j].StartUDP()
 			if err != nil {
-				b.Fatalf("failed to start UDP socket: %s", err.Error())
+				log.Fatalf("failed to start UDP socket: %s", err.Error())
 			}
 
 			// Control variables

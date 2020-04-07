@@ -330,7 +330,9 @@ func getAppsFromKube(podIndex int) ([]string, error) {
 	podIps := make([]string, 0)
 	for _, pod := range pods.Items {
 
-		if strings.Contains(pod.Status.ContainerStatuses[0].Name, podFilter) {
+		// Avoiding logger assigns when an empty filter is set
+		if strings.Contains(pod.Status.ContainerStatuses[0].Name, podFilter) &&
+			!strings.Contains(pod.Status.ContainerStatuses[0].Name, "logger") {
 
 			if pod.Status.PodIP == "" {
 				log.Fatalln("forcing a container restart...")
