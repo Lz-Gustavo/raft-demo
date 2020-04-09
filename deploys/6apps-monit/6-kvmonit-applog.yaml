@@ -44,7 +44,8 @@ spec:
             - containerPort: 13000
               protocol: TCP
 
-          command: ["./kvstore"]  
+          command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -97,6 +98,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -160,6 +162,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -212,6 +215,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -275,6 +279,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -327,6 +332,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -390,6 +396,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -442,6 +449,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -505,6 +513,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -557,6 +566,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -620,6 +630,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -672,6 +683,7 @@ spec:
               protocol: TCP
 
           command: ["./kvstore"]
+          args: ["-logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
