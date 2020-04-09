@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -58,6 +59,8 @@ func init() {
 		if err != nil {
 			log.Fatalln("failed to retrieve Kubernetes config, err:", err.Error())
 		}
+
+		go launchPsutilMonitor()
 
 		// Raft participants must posses an unique identifier within the cluster,
 		// this is a non optional way to assure that. Considering that a logger
@@ -244,5 +247,14 @@ func debugLoggerState() {
 			"\nappIP:", joinAddrs[i],
 			"\n==========",
 		)
+	}
+}
+
+func launchPsutilMonitor() {
+	cmd := exec.Command("python3", "monit_sys.py", "logger")
+	err := cmd.Run()
+	if err != nil {
+		fmt.Print("could not start monitor:", err.Error())
+		return
 	}
 }
