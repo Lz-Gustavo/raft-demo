@@ -3,12 +3,15 @@
 path=/home/lzgustavo/go/src/raft-demo
 local=.
 
-app=kvstore
-#app=diskstorage
-
 #clientsFolders=(1 4 7 10 13 16 19)
 
-numClients=(1 4 7 10 13 16 19)
+#app=kvstore
+#numClients=(1 4 7 10 13 16 19)
+
+app=diskstorage
+numClients=(1 7 13 19 25 31 37)
+#numClients=(1 12 23 34 45 56)
+#numClients=(1 6 11 16 21 26 31)
 #numClients=(1 3 5 7 9 11 13)
 
 dataSizeOptions=(1) #0: 128B, 1: 1KB, 2: 4KB

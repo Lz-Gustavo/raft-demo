@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
@@ -59,6 +60,8 @@ func init() {
 		if err != nil {
 			log.Fatalln("Failed to retrieve Kubernetes config, err:", err.Error())
 		}
+
+		go launchPsutilMonitor()
 	}
 
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to a file")
@@ -271,4 +274,13 @@ func loadEnvVariables() {
 
 func isLeader() bool {
 	return strings.Contains(envPodName, "leader")
+}
+
+func launchPsutilMonitor() {
+	cmd := exec.Command("python3", "monit_sys.py", "diskstorage")
+	err := cmd.Run()
+	if err != nil {
+		fmt.Print("could not start monitor:", err.Error())
+		return
+	}
 }

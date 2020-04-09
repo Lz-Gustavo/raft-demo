@@ -6,12 +6,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: loadgen-disk-1
+  name: loadgen-disk
 spec:
   template:
     metadata:
       labels:
-        app: loadgen-disk-1
+        app: loadgen-disk
     spec:
       affinity:
         podAntiAffinity:
@@ -23,7 +23,7 @@ spec:
                 operator: In
                 values: [kvstore, diskstorage, logger, loadgen]
       containers:
-      - name: loadgen-disk-1
+      - name: loadgen-disk
         image: r3muskteers/loadgen
         ports:
           - containerPort: 15000

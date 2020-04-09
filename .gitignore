@@ -5,3 +5,6 @@
 kvstore/kvstore
 diskstorage/diskstorage
 logger/logger
+
+monit/build/
+monit/dist/

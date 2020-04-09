@@ -6,12 +6,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: loadgen-kv-1
+  name: loadgen-kv
 spec:
   template:
     metadata:
       labels:
-        app: loadgen-kv-1
+        app: loadgen-kv
     spec:
       affinity:
         podAntiAffinity:
@@ -23,7 +23,7 @@ spec:
                 operator: In
                 values: [kvstore, diskstorage, logger, loadgen]
       containers:
-      - name: loadgen-kv-1
+      - name: loadgen-kv
         image: r3muskteers/loadgen
         ports:
           - containerPort: 15000
@@ -68,7 +68,7 @@ spec:
             protocol: UDP
 
         command: ["/bin/sh", "-c"]
-        args: ["go clean -testcache && go test /go/src/client -run TestClientTimeKvstore -count 1 -clients=8 -time=60 -key=1000000 -data=1 -log=1"]
+        args: ["go clean -testcache && go test /go/src/client -v -run TestClientTimeKvstore -count 1 -clients=8 -time=60 -key=1000000 -data=1 -log=1 && exit"]
         env:
           - name: MY_POD_NAME
             valueFrom:
