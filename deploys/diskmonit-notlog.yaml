@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-leader
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        r3: leader
+    spec:
+      containers:
+        - name: r3-diskstorage-leader
+          image: r3muskteers/monitor-disk:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diskstorage-follower
+spec:
+  selector:
+    matchLabels:
+      app: diskstorage
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: diskstorage
+        r3: follower
+    spec:
+      containers:
+        - name: r3-diskstorage
+          image: r3muskteers/monitor-disk:latest
+          ports:
+            - containerPort: 11000
+              protocol: TCP
+            - containerPort: 12000
+              protocol: TCP
+            - containerPort: 13000
+              protocol: TCP
+          command: ["/bin/sh", "-c"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: diskstorage
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

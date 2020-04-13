@@ -35,7 +35,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-1
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -44,7 +44,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -87,7 +87,7 @@ spec:
                 values: [alpha]
       containers:
         - name: diskstorage-follower-1
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -96,7 +96,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -150,7 +150,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-2
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -159,7 +159,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -202,7 +202,7 @@ spec:
                 values: [beta]
       containers:
         - name: diskstorage-follower-2
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -211,7 +211,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -265,7 +265,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-3
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -274,7 +274,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -317,7 +317,7 @@ spec:
                 values: [gama]
       containers:
         - name: diskstorage-follower-3
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -326,7 +326,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -343,6 +343,7 @@ spec:
 
 
 ---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -380,7 +381,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-4
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -389,7 +390,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -432,7 +433,7 @@ spec:
                 values: [delta]
       containers:
         - name: diskstorage-follower-4
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -441,7 +442,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -495,7 +496,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-5
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -504,7 +505,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -547,7 +548,7 @@ spec:
                 values: [epsilon]
       containers:
         - name: diskstorage-follower-5
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -556,7 +557,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -610,7 +611,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-6
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -619,7 +620,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -662,7 +663,7 @@ spec:
                 values: [zeta]
       containers:
         - name: diskstorage-follower-6
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -671,7 +672,7 @@ spec:
             - containerPort: 13000
               protocol: TCP
           command: ["/bin/sh", "-c"]
-          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage"]
+          args: ["dd if=/dev/zero of=/tmp/store1gb.txt count=1024 bs=1048576 && ./diskstorage -logfolder=/tmp/"]
           env:
             - name: MY_POD_NAME
               valueFrom:
@@ -685,7 +686,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-
 
 
 ---

@@ -1,7 +1,7 @@
 # Modify the -n suffix for different kv instances
 #
 # This job stimulates diskstorage application with the following params:
-# -clients=2 -time=60 -key=1000000 -data=1 -log=./
+# -clients=10 -time=60 -key=1000000 -data=1 -log=./
 #
 apiVersion: batch/v1
 kind: Job
@@ -68,7 +68,7 @@ spec:
             protocol: UDP
 
         command: ["/bin/sh", "-c"]
-        args: ["go clean -testcache && go test /go/src/client -run TestClientTimeKvstore -count 1 -clients=2 -time=60 -key=1000000 -data=1 -log=1"]
+        args: ["go clean -testcache && go test /go/src/client -run TestClientTimeKvstore -count 1 -clients=10 -time=60 -key=1000000 -data=1 -log=1"]
         env:
           - name: MY_POD_NAME
             valueFrom:

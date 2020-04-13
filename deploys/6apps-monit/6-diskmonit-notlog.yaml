@@ -35,7 +35,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-1
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -87,7 +87,7 @@ spec:
                 values: [alpha]
       containers:
         - name: diskstorage-follower-1
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -150,7 +150,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-2
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -202,7 +202,7 @@ spec:
                 values: [beta]
       containers:
         - name: diskstorage-follower-2
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -265,7 +265,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-3
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -317,7 +317,7 @@ spec:
                 values: [gama]
       containers:
         - name: diskstorage-follower-3
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -380,7 +380,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-4
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -432,7 +432,7 @@ spec:
                 values: [delta]
       containers:
         - name: diskstorage-follower-4
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -495,7 +495,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-5
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -547,7 +547,7 @@ spec:
                 values: [epsilon]
       containers:
         - name: diskstorage-follower-5
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -610,7 +610,7 @@ spec:
                 values: [leader]
       containers:
         - name: diskstorage-leader-6
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -662,7 +662,7 @@ spec:
                 values: [zeta]
       containers:
         - name: diskstorage-follower-6
-          image: r3muskteers/diskstorage:latest
+          image: r3muskteers/monitor-disk:latest
           ports:
             - containerPort: 11000
               protocol: TCP
@@ -685,7 +685,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-
 
 
 ---
