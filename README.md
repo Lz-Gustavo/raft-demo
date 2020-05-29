@@ -1,8 +1,8 @@
 # raft-demo
 
-This repository organizes scripts, papers, and experiment applications developed using [hashicorp's Go implementation](https://github.com/hashicorp/raft) of the [Raft Consensus Algorithm](https://raft.github.io).
+This repository organizes scripts, papers, and experiment applications developed using [hashicorp's Go implementation](https://github.com/hashicorp/raft) of the [Raft consensus algorithm](https://raft.github.io).
 
-## Non-Application Directories
+## Non-application directories
 
 * **docs**
 
@@ -14,11 +14,11 @@ This repository organizes scripts, papers, and experiment applications developed
 
 * **deploys**
 
-	TODO
+	Useful YAMLs to deploy **kvstore** and **diskstorage** applications under different configurations and topologies on a Kubernetes cluster.
 
 * **monit**
 
-	TODO
+	Resource usage monitoring scripts utilizing [psutil](https://github.com/giampaolo/psutil).
 
 ## Applications
 
@@ -92,20 +92,9 @@ This repository organizes scripts, papers, and experiment applications developed
 	./client -config=../client-config.toml
 	```
 
-### Docker
-
-In order to reference go mods inside Docker build context, you must build the desired application imagem from the repository root folder, like the example provided below:
-
-```bash
-docker build -f kvstore/Dockerfile -t kvstore .
-```
-
-### Kubernetes
-TODO
-
 ### OBS:
 
-- Kvstore application can interpret the [Protocol Buffers](https://developers.google.com/protocol-buffers/) message format specified at journey/pb.Message, or the ad-hoc format described bellow:
+- kvstore application can interpret the [Protocol Buffers](https://developers.google.com/protocol-buffers/) message format specified at journey/pb.Message, or the ad-hoc format described bellow:
 
 	```bash
 	get-[key]
@@ -118,6 +107,29 @@ TODO
 	```bash
 	./logger -id 'log0,log1' -raft ':12000,:12001' -join ':13000,:13001'
 	```
+
+### Docker
+
+In order to reference go mods inside Docker build context, you must build the desired application imagem from the repository root folder, like the example below:
+
+```bash
+docker build -f kvstore/Dockerfile -t kvstore .
+```
+
+### Kubernetes
+After properly installing Kubernetes via [kubeadm](https://vitux.com/install-and-deploy-kubernetes-on-ubuntu/) or [minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/), a series of YAML resources for easily test and analyses under different scenarios and configurations are available at **deploys/**. To deploy a simple cluster of three replicas and a load generator, first deploy the application's resource:
+
+```bash
+kubectl apply -f deploys/kv-notlog.yaml
+```
+
+Automatic IP discovery between replicas, load generators, and loggers is implemented by defining naming conventions and tags for each pod, which is consulted on runtime via [k8s/client-go](https://github.com/kubernetes/client-go). After waiting a few seconds for pod IP attribution (you can check status via ```kubectl get nodes```), launch the corresponding load generator:
+
+```bash
+kubectl apply -f deploys/loadgen-kv.yaml
+```
+
+For a more detailed explanation about the different YAMLs and naming conventions, check **deploys/README.md**.
 
 ## Profiling
 
@@ -132,12 +144,6 @@ In case you want to measure the efficiency of the decoupled logger process again
 ```bash
 ./kvstore -logfolder=/path/to/folder/
 ```
-
-## Issues and Upcoming Features
-
-* **[DONE]** Starting from [latest commmit](https://github.com/Lz-Gustavo/raft-demo/commit/f5d60037a364a8029bed4e3e84327b62a215ec45), project building is temporarily unavaiable due to Journey package dependency.
-
-* **[DONE]** [Protocol Buffers](https://developers.google.com/protocol-buffers/) are going to be implemented for a faster serialize/deserialization of commands by **kvstore** application.
 
 ## License
 [MPL 2.0](https://www.mozilla.org/en-US/MPL/2.0/)
