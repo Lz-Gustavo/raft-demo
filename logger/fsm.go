@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/Lz-Gustavo/journey"
-	"github.com/Lz-Gustavo/journey/pb"
+	"raft-demo/beelog/pb"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/raft"
 )
@@ -53,26 +53,26 @@ func serializeCommandInJSON(requistion string, index uint64) ([]byte, error) {
 	lowerCase = strings.TrimSuffix(lowerCase, "\n")
 	content := strings.Split(lowerCase, "-")
 
-	var op journey.Operation
-	cmt := content[2]
+	var op pb.Command_Operation
+	v := content[2]
 
 	switch content[1] {
 	case "set":
-		op = journey.Set
-		cmt = strings.Join(content[2:4], "-")
+		op = pb.Command_SET
+		v = strings.Join(content[2:4], "-")
 	case "get":
-		op = journey.Get
+		op = pb.Command_GET
 	case "delete":
-		op = journey.Delete
+		op = pb.Command_DELETE
 	default:
 		return nil, fmt.Errorf("Failed to serialize command, operation %q not recognized", content[1])
 	}
 
-	cmd := &journey.Command{
-		Id:      index,
-		Ip:      content[0],
-		Op:      op,
-		Comment: cmt,
+	cmd := &pb.Command{
+		Id:    index,
+		Ip:    content[0],
+		Op:    op,
+		Value: v,
 	}
 
 	s, err := json.Marshal(cmd)

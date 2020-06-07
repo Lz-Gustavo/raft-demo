@@ -23,7 +23,7 @@ const (
 	// Defines wheter the application should interpret IPs provided on
 	// cmdli args or use its current env POD_IP and ask the other to
 	// Kubernetes sdk
-	staticIPs = false
+	staticIPs = true
 )
 
 var (

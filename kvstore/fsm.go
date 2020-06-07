@@ -10,7 +10,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/Lz-Gustavo/journey/pb"
+	"raft-demo/beelog/pb"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/raft"
 )
@@ -20,36 +21,45 @@ type fsm Store
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
 
-	command := &pb.Command{}
-	err := proto.Unmarshal(l.Data, command)
+	cmd := &pb.Command{}
+	err := proto.Unmarshal(l.Data, cmd)
 	if err != nil {
 		return err
 	}
 
 	if f.Logging {
-		command.Id = l.Index
-		serializedCmd, _ := proto.Marshal(command)
+		cmd.Id = l.Index
+		rawCmd, _ := proto.Marshal(cmd)
 
-		defer func() {
+		if beelogTest {
+			err := f.avl.Log(l.Index, *cmd)
+			if err != nil {
+				return err
+			}
 
-			binary.Write(f.LogFile, binary.BigEndian, int32(len(serializedCmd)))
-			f.LogFile.Write(serializedCmd)
+		} else if inMemStateLog {
+			if f.inMemLog == nil {
+				f.inMemLog = &[]pb.Command{}
+			}
+			*f.inMemLog = append(*f.inMemLog, *cmd)
 
-			//if catastrophicFaults {
-			//	f.LogFile.Sync()
-			//}
-		}()
+		} else {
+			defer func() {
+				binary.Write(f.LogFile, binary.BigEndian, int32(len(rawCmd)))
+				f.LogFile.Write(rawCmd)
+			}()
+		}
 	}
 
-	switch command.Op {
+	switch cmd.Op {
 	case pb.Command_SET:
-		return strings.Join([]string{command.Ip, f.applySet(command.Key, command.Value)}, "-")
+		return strings.Join([]string{cmd.Ip, f.applySet(cmd.Key, cmd.Value)}, "-")
 	case pb.Command_GET:
-		return strings.Join([]string{command.Ip, f.applyGet(command.Key)}, "-")
+		return strings.Join([]string{cmd.Ip, f.applyGet(cmd.Key)}, "-")
 	// case pb.Command_DELETE:
-	// 	return strings.Join([]string{command.Ip, f.applyDelete(command.Key)}, "-")
+	// 	return strings.Join([]string{cmd.Ip, f.applyDelete(cmd.Key)}, "-")
 	default:
-		panic(fmt.Sprintf("unrecognized command op: %v", command))
+		panic(fmt.Sprintf("unrecognized command op: %v", cmd))
 	}
 }
 

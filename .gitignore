@@ -8,3 +8,5 @@ logger/logger
 
 monit/build/
 monit/dist/
+
+beelog/beelog.go

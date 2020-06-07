@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -15,6 +17,10 @@ import (
 	"sync"
 	"time"
 
+	bl "raft-demo/beelog"
+	"raft-demo/beelog/pb"
+
+	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 )
@@ -33,6 +39,11 @@ const (
 	// all nodes presented in the consensus cluster are down. Always set to false in any
 	// other cases, because this strong assumption greatly degradates performance.
 	catastrophicFaults = false
+
+	// TODO: describe ...
+	inMemStateLog = false
+	beelogTest    = true
+	reduceAlg     = bl.IterDFSAvl
 )
 
 var (
@@ -53,7 +64,7 @@ func configRaft() *raft.Config {
 type Store struct {
 	RaftDir  string
 	RaftBind string
-	inmem    bool
+	inMem    bool
 
 	mu sync.Mutex
 	m  map[string][]byte
@@ -61,19 +72,20 @@ type Store struct {
 	raft   *raft.Raft
 	logger hclog.Logger
 
-	Logging bool
-	LogFile *os.File
+	Logging  bool
+	LogFile  *os.File
+	inMemLog *[]pb.Command
+	avl      *bl.AVLTreeHT
 
 	compress   bool
 	gzipBuffer bytes.Buffer
 }
 
 // New returns a new Store.
-func New(ctx context.Context, inmem bool) *Store {
-
+func New(ctx context.Context, inMem bool) *Store {
 	s := &Store{
 		m:        make(map[string][]byte),
-		inmem:    inmem,
+		inMem:    inMem,
 		compress: compressValues,
 		logger: hclog.New(&hclog.LoggerOptions{
 			Name:   "store",
@@ -94,6 +106,14 @@ func New(ctx context.Context, inmem bool) *Store {
 		s.Logging = true
 		logFileName := *logfolder + "log-file-" + svrID + ".txt"
 		s.LogFile = createFile(logFileName)
+
+	} else {
+		s.Logging = inMemStateLog || beelogTest
+		if beelogTest {
+			s.avl = bl.NewAVLTreeHT()
+		} else {
+			s.inMemLog = &[]pb.Command{}
+		}
 	}
 
 	if compressValues {
@@ -292,18 +312,61 @@ func (s *Store) ListenRaftJoins(ctx context.Context, addr string) {
 }
 
 // UnsafeStateRecover ...
-func (s *Store) UnsafeStateRecover(logIndex uint64, activePipe net.Conn) error {
-
+func (s *Store) UnsafeStateRecover(p, n uint64, activePipe net.Conn) error {
 	if !s.Logging {
-		return fmt.Errorf("Cannot force application-level recover from a non-logged application")
+		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
 	}
 
-	// Create a read-only file descriptor
-	logFileName := *logfolder + "log-file-" + svrID + ".txt"
-	fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
-	defer fd.Close()
+	var (
+		logs []byte
+		err  error
+		rd   io.Reader
+		buff *bytes.Buffer
+	)
 
-	logFileContent, err := readAll(fd)
+	if !(inMemStateLog || beelogTest) {
+		// persistent stored log, currently returns the entire log ignoring [p, n] interval
+
+		logFileName := *logfolder + "log-file-" + svrID + ".txt"
+		fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
+		defer fd.Close()
+		rd = fd
+
+	} else {
+		var cmds []pb.Command
+		if beelogTest {
+			cmds, err = bl.ApplyReduceAlgo(s.avl, reduceAlg, p, n)
+			if err != nil {
+				return err
+			}
+
+		} else {
+			// local in-mem log
+			cmds = (*s.inMemLog)[p:n]
+		}
+
+		buff = bytes.NewBuffer(nil)
+		for _, c := range cmds {
+			raw, err := proto.Marshal(&c)
+			if err != nil {
+				return err
+			}
+
+			// writing size of each serialized message as streaming delimiter
+			err = binary.Write(buff, binary.BigEndian, int32(len(raw)))
+			if err != nil {
+				return err
+			}
+
+			_, err = buff.Write(raw)
+			if err != nil {
+				return err
+			}
+		}
+		rd = buff
+	}
+
+	logs, err = ioutil.ReadAll(rd)
 	if err != nil {
 		return err
 	}
@@ -314,7 +377,7 @@ func (s *Store) UnsafeStateRecover(logIndex uint64, activePipe net.Conn) error {
 		_, err := pipe.Write(dataToSend)
 		signal <- err
 
-	}(logFileContent, activePipe, signalError)
+	}(logs, activePipe, signalError)
 	return <-signalError
 }
 
@@ -340,14 +403,15 @@ func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 			request, _ := bufio.NewReader(conn).ReadString('\n')
 
 			data := strings.Split(request, "-")
-			if len(data) != 2 {
+			if len(data) != 3 {
 				log.Fatalf("incorrect state request, got: %s", data)
 			}
 
-			data[1] = strings.TrimSuffix(data[1], "\n")
-			requestedLogIndex, _ := strconv.Atoi(data[1])
+			data[2] = strings.TrimSuffix(data[2], "\n")
+			firstIndex, _ := strconv.Atoi(data[1])
+			lastIndex, _ := strconv.Atoi(data[2])
 
-			err = s.UnsafeStateRecover(uint64(requestedLogIndex), conn)
+			err = s.UnsafeStateRecover(uint64(firstIndex), uint64(lastIndex), conn)
 			if err != nil {
 				log.Fatalf("failed to transfer log to node located at %s: %s", data[0], err.Error())
 			}
@@ -358,50 +422,6 @@ func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 			}
 		}
 	}
-}
-
-// readAll is a slightly derivation of 'ioutil.ReadFile()'. It skips the file descriptor creation
-// and is declared to avoid unecessary dependency from the whole ioutil package.
-// 'A little copying is better than a little dependency.'
-func readAll(fileDescriptor *os.File) ([]byte, error) {
-	// It's a good but not certain bet that FileInfo will tell us exactly how much to
-	// read, so let's try it but be prepared for the answer to be wrong.
-	var n int64 = bytes.MinRead
-
-	if fi, err := fileDescriptor.Stat(); err == nil {
-		// As initial capacity for readAll, use Size + a little extra in case Size
-		// is zero, and to avoid another allocation after Read has filled the
-		// buffer. The readAll call will read into its allocated internal buffer
-		// cheaply. If the size was wrong, we'll either waste some space off the end
-		// or reallocate as needed, but in the overwhelmingly common case we'll get
-		// it just right.
-		if size := fi.Size() + bytes.MinRead; size > n {
-			n = size
-		}
-	}
-	return func(r io.Reader, capacity int64) (b []byte, err error) {
-		// readAll reads from r until an error or EOF and returns the data it read
-		// from the internal buffer allocated with a specified capacity.
-		var buf bytes.Buffer
-		// If the buffer overflows, we will get bytes.ErrTooLarge.
-		// Return that as an error. Any other panic remains.
-		defer func() {
-			e := recover()
-			if e == nil {
-				return
-			}
-			if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
-				err = panicErr
-			} else {
-				panic(e)
-			}
-		}()
-		if int64(int(capacity)) == capacity {
-			buf.Grow(int(capacity))
-		}
-		_, err = buf.ReadFrom(r)
-		return buf.Bytes(), err
-	}(fileDescriptor, n)
 }
 
 func createFile(filename string) *os.File {

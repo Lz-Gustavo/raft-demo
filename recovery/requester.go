@@ -18,6 +18,9 @@ const (
 	// Used to initialize a state transfer protocol to the application log after a specified
 	// number of seconds.
 	requestStateAfterSec = 30
+
+	firstIndex = 0
+	lastIndex  = 10000
 )
 
 var recovAddr string
@@ -40,7 +43,7 @@ func main() {
 	// Wait for the application to log a sequence of commands
 	time.Sleep(time.Duration(requestStateAfterSec) * time.Second)
 
-	receivedState, stateTransferTime := AskForStateTransfer(0)
+	receivedState, stateTransferTime := AskForStateTransfer(firstIndex, lastIndex)
 
 	numCommands, stateInstallTime := StartStateInstallation(recovReplica, receivedState)
 
@@ -51,10 +54,12 @@ func main() {
 }
 
 // AskForStateTransfer ...
-func AskForStateTransfer(firstIndex int) ([]byte, int64) {
+func AskForStateTransfer(p, n uint64) ([]byte, int64) {
+	f := strconv.FormatUint(p, 10)
+	l := strconv.FormatUint(n, 10)
 
 	stateTransferStart := time.Now()
-	receivedState, err := sendStateRequest(firstIndex)
+	receivedState, err := sendStateRequest(f, l)
 	if err != nil {
 		log.Fatalf("Failed to receive a new state from node %s: %s", recovAddr, err.Error())
 	}
@@ -74,21 +79,20 @@ func StartStateInstallation(replica *MockState, receivedState []byte) (numCmds, 
 	return cmds, stateInstallFinish
 }
 
-func sendStateRequest(index int) ([]byte, error) {
+func sendStateRequest(first, last string) ([]byte, error) {
 	stateConn, err := net.Dial("tcp", recovAddr)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to node at %s: %s", recovAddr, err.Error())
 	}
 
-	requestMessage := stateConn.LocalAddr().String() + "-" + strconv.Itoa(index) + "\n"
-	_, err = fmt.Fprint(stateConn, requestMessage)
+	reqMsg := stateConn.LocalAddr().String() + "-" + first + "-" + last + "\n"
+	_, err = fmt.Fprint(stateConn, reqMsg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed sending state request to node at %s: %s", recovAddr, err.Error())
 	}
 
-	var receivedData []byte
-
-	receivedData, err = ioutil.ReadAll(stateConn)
+	var recv []byte
+	recv, err = ioutil.ReadAll(stateConn)
 	if err != nil {
 		log.Fatalln("Could not read state response:", err.Error())
 	}
@@ -96,6 +100,5 @@ func sendStateRequest(index int) ([]byte, error) {
 	if err = stateConn.Close(); err != nil {
 		return nil, err
 	}
-
-	return receivedData, nil
+	return recv, nil
 }

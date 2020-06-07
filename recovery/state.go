@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Lz-Gustavo/journey/pb"
+	"raft-demo/beelog/pb"
+
 	"github.com/golang/protobuf/proto"
 )
 

@@ -10,8 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	"raft-demo/beelog/pb"
+
 	"github.com/BurntSushi/toml"
-	"github.com/Lz-Gustavo/journey/pb"
 	"github.com/golang/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
