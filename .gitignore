@@ -6,6 +6,7 @@ kvstore/kvstore
 diskstorage/diskstorage
 logger/logger
 
+recovery/recovery
 monit/build/
 monit/dist/
 

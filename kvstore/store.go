@@ -41,8 +41,8 @@ const (
 	catastrophicFaults = false
 
 	// TODO: describe ...
-	inMemStateLog = false
 	beelogTest    = true
+	inMemStateLog = true
 	reduceAlg     = bl.IterDFSAvl
 )
 
@@ -342,7 +342,11 @@ func (s *Store) UnsafeStateRecover(p, n uint64, activePipe net.Conn) error {
 
 		} else {
 			// local in-mem log
-			cmds = (*s.inMemLog)[p:n]
+			for _, c := range *s.inMemLog {
+				if c.Id >= p && c.Id <= n {
+					cmds = append(cmds, c)
+				}
+			}
 		}
 
 		buff = bytes.NewBuffer(nil)

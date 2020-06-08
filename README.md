@@ -2,6 +2,8 @@
 
 This repository organizes scripts, papers, and experiment applications developed using [hashicorp's Go implementation](https://github.com/hashicorp/raft) of the [Raft consensus algorithm](https://raft.github.io).
 
+**IMPORTANT** *beelog-exp* is currently an unstable branch. Some dependencies are maintained unavailable until final adjustments.
+
 ## Non-application directories
 
 * **docs**
