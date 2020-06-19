@@ -44,7 +44,7 @@ func NewServer(ctx context.Context, s *Store) *Server {
 func (svr *Server) Exit() {
 
 	svr.kvstore.raft.Shutdown()
-	if svr.kvstore.Logging {
+	if svr.kvstore.Logging == DiskTrad {
 		svr.kvstore.LogFile.Close()
 	}
 	for _, v := range svr.clients {

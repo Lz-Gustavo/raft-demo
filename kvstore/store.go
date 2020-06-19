@@ -25,6 +25,27 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+// LogStrategy indexes different implemented approaches for command logging, used on
+// various evaluation scenarios.
+type LogStrategy uint8
+
+const (
+	// NotLog ...
+	NotLog LogStrategy = iota
+
+	// DiskTrad ...
+	DiskTrad
+
+	// InmemTrad ...
+	InmemTrad
+
+	// DiskBeelog ...
+	DiskBeelog
+
+	// InmemBeelog ...
+	InmemBeelog
+)
+
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
@@ -40,19 +61,22 @@ const (
 	// other cases, because this strong assumption greatly degradates performance.
 	catastrophicFaults = false
 
-	// TODO: describe ...
-	beelogTest    = true
-	inMemStateLog = true
-	reduceAlg     = bl.IterDFSAvl
+	// defaultLogStrategy is overwritten to 'DiskTrad' if '-logfolder' flag is provided.
+	defaultLogStrategy = InmemBeelog
+	beelogReduceAlg    = bl.IterDFSAvl
 )
 
 var (
 	initValue = []byte(strings.Repeat("!", initValueSize))
 )
 
+func configBeelog() *bl.LogConfig {
+	// TODO: ...
+	return &bl.LogConfig{}
+}
+
 // Custom configuration over default for testing
 func configRaft() *raft.Config {
-
 	config := raft.DefaultConfig()
 	config.SnapshotInterval = 24 * time.Hour
 	config.SnapshotThreshold = 2 << 62
@@ -72,7 +96,7 @@ type Store struct {
 	raft   *raft.Raft
 	logger hclog.Logger
 
-	Logging  bool
+	Logging  LogStrategy
 	LogFile  *os.File
 	inMemLog *[]pb.Command
 	avl      *bl.AVLTreeHT
@@ -93,6 +117,10 @@ func New(ctx context.Context, inMem bool) *Store {
 			Output: os.Stderr,
 		}),
 	}
+	err := s.initLogConfig()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	if joinHandlerAddr != "" {
 		go s.ListenRaftJoins(ctx, joinHandlerAddr)
@@ -100,20 +128,6 @@ func New(ctx context.Context, inMem bool) *Store {
 
 	if recovHandlerAddr != "" {
 		go s.ListenStateTransfer(ctx, recovHandlerAddr)
-	}
-
-	if *logfolder != "" {
-		s.Logging = true
-		logFileName := *logfolder + "log-file-" + svrID + ".txt"
-		s.LogFile = createFile(logFileName)
-
-	} else {
-		s.Logging = inMemStateLog || beelogTest
-		if beelogTest {
-			s.avl = bl.NewAVLTreeHT()
-		} else {
-			s.inMemLog = &[]pb.Command{}
-		}
 	}
 
 	if compressValues {
@@ -136,6 +150,35 @@ func New(ctx context.Context, inMem bool) *Store {
 		}
 	}
 	return s
+}
+
+func (s *Store) initLogConfig() error {
+	s.Logging = defaultLogStrategy
+	if *logfolder != "" {
+		s.Logging = DiskTrad
+	}
+
+	switch s.Logging {
+	case DiskTrad:
+		logFileName := *logfolder + "log-file-" + svrID + ".txt"
+		s.LogFile = createFile(logFileName)
+		break
+
+	case DiskBeelog: // same init procedure
+	case InmemBeelog:
+		// TODO: interpret config parameters for beelog ...
+		//cfg := configBeelog()
+		s.avl = bl.NewAVLTreeHT()
+		break
+
+	case InmemTrad:
+		s.inMemLog = &[]pb.Command{}
+		break
+
+	default:
+		return fmt.Errorf("unknow log strategy '%v' provided", s.Logging)
+	}
+	return nil
 }
 
 // Propose invokes Raft.Apply to propose a new command following protocol's atomic broadcast
@@ -313,42 +356,54 @@ func (s *Store) ListenRaftJoins(ctx context.Context, addr string) {
 
 // UnsafeStateRecover ...
 func (s *Store) UnsafeStateRecover(p, n uint64, activePipe net.Conn) error {
-	if !s.Logging {
-		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
-	}
-
 	var (
-		logs []byte
-		err  error
-		rd   io.Reader
-		buff *bytes.Buffer
+		logs  []byte
+		err   error
+		rd    io.Reader
+		buff  *bytes.Buffer
+		cmds  []pb.Command
+		inmem bool
 	)
 
-	if !(inMemStateLog || beelogTest) {
-		// persistent stored log, currently returns the entire log ignoring [p, n] interval
+	switch s.Logging {
+	case NotLog:
+		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
 
+	case DiskTrad:
+		// persistent stored log, currently returns the entire log ignoring [p, n] interval
 		logFileName := *logfolder + "log-file-" + svrID + ".txt"
 		fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
 		defer fd.Close()
 		rd = fd
+		break
 
-	} else {
-		var cmds []pb.Command
-		if beelogTest {
-			cmds, err = bl.ApplyReduceAlgo(s.avl, reduceAlg, p, n)
-			if err != nil {
-				return err
-			}
+	case DiskBeelog:
+		// TODO: implement resilient recovery for beelog
+		break
 
-		} else {
-			// local in-mem log
-			for _, c := range *s.inMemLog {
-				if c.Id >= p && c.Id <= n {
-					cmds = append(cmds, c)
-				}
+	case InmemBeelog:
+		cmds, err = bl.ApplyReduceAlgo(s.avl, beelogReduceAlg, p, n)
+		if err != nil {
+			return err
+		}
+		inmem = true
+		break
+
+	case InmemTrad:
+		// local in-mem log
+		for _, c := range *s.inMemLog {
+			if c.Id >= p && c.Id <= n {
+				cmds = append(cmds, c)
 			}
 		}
+		inmem = true
+		break
 
+	default:
+		return fmt.Errorf("unknow log strategy '%v' provided", s.Logging)
+	}
+
+	if inmem {
 		buff = bytes.NewBuffer(nil)
 		for _, c := range cmds {
 			raw, err := proto.Marshal(&c)
@@ -429,7 +484,6 @@ func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 }
 
 func createFile(filename string) *os.File {
-
 	var flags int
 	if catastrophicFaults {
 		flags = os.O_SYNC | os.O_WRONLY

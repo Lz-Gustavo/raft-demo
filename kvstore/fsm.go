@@ -27,28 +27,9 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 		return err
 	}
 
-	if f.Logging {
-		cmd.Id = l.Index
-		rawCmd, _ := proto.Marshal(cmd)
-
-		if beelogTest {
-			err := f.avl.Log(l.Index, *cmd)
-			if err != nil {
-				return err
-			}
-
-		} else if inMemStateLog {
-			if f.inMemLog == nil {
-				f.inMemLog = &[]pb.Command{}
-			}
-			*f.inMemLog = append(*f.inMemLog, *cmd)
-
-		} else {
-			defer func() {
-				binary.Write(f.LogFile, binary.BigEndian, int32(len(rawCmd)))
-				f.LogFile.Write(rawCmd)
-			}()
-		}
+	err = f.LogCommand(l.Index, cmd, f.Logging)
+	if err != nil {
+		panic(fmt.Sprintf("couldnt log command: %v", *cmd))
 	}
 
 	switch cmd.Op {
@@ -109,10 +90,10 @@ func (f *fsm) applySet(key, value string) string {
 	return ""
 }
 
-// func (f *fsm) applyDelete(key string) string {
-// 	delete(f.m, key)
-// 	return ""
-// }
+func (f *fsm) applyDelete(key string) string {
+	delete(f.m, key)
+	return ""
+}
 
 // NOTE: pre-initalization of gzipReader on fsm store is not viable option, because necessary
 // Close() calls from write method will imediately dealloc the f.Reader attribute. This closure
@@ -127,11 +108,10 @@ func (f *fsm) applyGet(key string) string {
 	}
 
 	f.gzipBuffer.Reset()
-	rdr := bytes.NewReader(value)
-	readerGzip, _ := gzip.NewReader(rdr)
-	bytes, _ := ioutil.ReadAll(readerGzip)
-	readerGzip.Close()
-
+	rd := bytes.NewReader(value)
+	rdGzip, _ := gzip.NewReader(rd)
+	bytes, _ := ioutil.ReadAll(rdGzip)
+	rdGzip.Close()
 	return string(bytes)
 }
 
@@ -161,3 +141,42 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 }
 
 func (f *fsmSnapshot) Release() {}
+
+// LogCommand logs the received command on the choosen index following the configured
+// log strategy.
+func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
+	cmd.Id = ind
+	switch st {
+	case NotLog:
+		return nil
+
+	case DiskTrad:
+		rawCmd, err := proto.Marshal(cmd)
+		if err != nil {
+			return err
+		}
+
+		binary.Write(f.LogFile, binary.BigEndian, int32(len(rawCmd)))
+		f.LogFile.Write(rawCmd)
+		break
+
+	case InmemTrad:
+		if f.inMemLog == nil {
+			f.inMemLog = &[]pb.Command{}
+		}
+		*f.inMemLog = append(*f.inMemLog, *cmd)
+		break
+
+	case DiskBeelog: // same log procedure
+	case InmemBeelog:
+		err := f.avl.Log(ind, *cmd)
+		if err != nil {
+			return err
+		}
+		break
+
+	default:
+		return fmt.Errorf("unsupported log strategy")
+	}
+	return nil
+}
