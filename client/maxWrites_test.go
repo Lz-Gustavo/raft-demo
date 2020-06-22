@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"raft-demo/beelog/pb"
+	"github.com/Lz-Gustavo/beelog/pb"
 
 	"github.com/golang/protobuf/proto"
 )

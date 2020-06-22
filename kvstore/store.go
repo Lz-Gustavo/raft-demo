@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	bl "raft-demo/beelog"
-	"raft-demo/beelog/pb"
+	bl "github.com/Lz-Gustavo/beelog"
+	"github.com/Lz-Gustavo/beelog/pb"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/go-hclog"
@@ -69,11 +69,6 @@ const (
 var (
 	initValue = []byte(strings.Repeat("!", initValueSize))
 )
-
-func configBeelog() *bl.LogConfig {
-	// TODO: ...
-	return &bl.LogConfig{}
-}
 
 // Custom configuration over default for testing
 func configRaft() *raft.Config {

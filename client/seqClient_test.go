@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"raft-demo/beelog/pb"
+	"github.com/Lz-Gustavo/beelog/pb"
 )
 
 var (

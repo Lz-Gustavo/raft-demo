@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"raft-demo/beelog/pb"
+	"github.com/Lz-Gustavo/beelog/pb"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/raft"

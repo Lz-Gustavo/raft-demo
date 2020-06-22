@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Lz-Gustavo/journey/pb"
+	"github.com/Lz-Gustavo/beelog/pb"
+
 	"github.com/golang/protobuf/proto"
 )
 

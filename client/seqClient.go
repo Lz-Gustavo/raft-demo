@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"raft-demo/beelog/pb"
+	"github.com/Lz-Gustavo/beelog/pb"
 
 	"github.com/BurntSushi/toml"
 	"github.com/golang/protobuf/proto"
