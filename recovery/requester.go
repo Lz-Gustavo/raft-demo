@@ -56,29 +56,28 @@ func main() {
 }
 
 // AskForStateTransfer ...
-func AskForStateTransfer(p, n uint64) ([]byte, int64) {
+func AskForStateTransfer(p, n uint64) ([]byte, uint64) {
 	f := strconv.FormatUint(p, 10)
 	l := strconv.FormatUint(n, 10)
 
-	stateTransferStart := time.Now()
+	start := time.Now()
 	recvState, err := sendStateRequest(f, l)
 	if err != nil {
 		log.Fatalf("Failed to receive a new state from node %s: %s", recovAddr, err.Error())
 	}
-	stateTransferFinish := int64(time.Since(stateTransferStart) / time.Nanosecond)
-	return recvState, stateTransferFinish
+	finish := uint64(time.Since(start) / time.Nanosecond)
+	return recvState, finish
 }
 
 // StartStateInstallation ...
-func StartStateInstallation(replica *MockState, recvState []byte) (numCmds, duration int64) {
-
-	stateInstallStart := time.Now()
+func StartStateInstallation(replica *MockState, recvState []byte) (numCmds, duration uint64) {
+	start := time.Now()
 	cmds, err := replica.InstallReceivedState(recvState)
 	if err != nil {
 		log.Fatalf("Failed to install the received state: %s", err.Error())
 	}
-	stateInstallFinish := int64(time.Since(stateInstallStart) / time.Nanosecond)
-	return cmds, stateInstallFinish
+	finish := uint64(time.Since(start) / time.Nanosecond)
+	return cmds, finish
 }
 
 func sendStateRequest(first, last string) ([]byte, error) {

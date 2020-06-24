@@ -5,9 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/binary"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -20,14 +18,13 @@ import (
 	bl "github.com/Lz-Gustavo/beelog"
 	"github.com/Lz-Gustavo/beelog/pb"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/raft"
 )
 
 // LogStrategy indexes different implemented approaches for command logging, used on
 // various evaluation scenarios.
-type LogStrategy uint8
+type LogStrategy int8
 
 const (
 	// NotLog ...
@@ -39,11 +36,8 @@ const (
 	// InmemTrad ...
 	InmemTrad
 
-	// DiskBeelog ...
-	DiskBeelog
-
-	// InmemBeelog ...
-	InmemBeelog
+	// Beelog ... configured by configBeelog() ...
+	Beelog
 )
 
 const (
@@ -62,8 +56,12 @@ const (
 	catastrophicFaults = false
 
 	// defaultLogStrategy is overwritten to 'DiskTrad' if '-logfolder' flag is provided.
-	defaultLogStrategy = InmemBeelog
-	beelogReduceAlg    = bl.IterDFSAvl
+	defaultLogStrategy = Beelog
+
+	// beelog configuration, ignored if 'defaultLogStrategy' isnt 'Beelog'
+	beelogReduceAlg = bl.IterDFSAvl
+	beelogTick      = bl.Delayed
+	beelogInmem     = false
 )
 
 var (
@@ -79,25 +77,35 @@ func configRaft() *raft.Config {
 	return config
 }
 
+// Custom config over default set by const definitions
+func configBeelog() *bl.LogConfig {
+	return &bl.LogConfig{
+		Alg:   beelogReduceAlg,
+		Tick:  beelogTick,
+		Inmem: beelogInmem,
+	}
+}
+
 // Store is a simple key-value store, where all changes are made via Raft consensus.
 type Store struct {
 	RaftDir  string
 	RaftBind string
 	inMem    bool
 
-	mu sync.Mutex
-	m  map[string][]byte
+	m          map[string][]byte
+	compress   bool
+	gzipBuffer bytes.Buffer
 
 	raft   *raft.Raft
 	logger hclog.Logger
 
 	Logging  LogStrategy
 	LogFile  *os.File
-	inMemLog *[]pb.Command
+	LogFname string
 	avl      *bl.AVLTreeHT
 
-	compress   bool
-	gzipBuffer bytes.Buffer
+	inMemLog *[]pb.Command
+	mu       sync.Mutex
 }
 
 // New returns a new Store.
@@ -155,15 +163,20 @@ func (s *Store) initLogConfig() error {
 
 	switch s.Logging {
 	case DiskTrad:
-		logFileName := *logfolder + "log-file-" + svrID + ".txt"
-		s.LogFile = createFile(logFileName)
+		s.LogFname = *logfolder + "log-file-" + svrID + ".log"
+		s.LogFile = createFile(s.LogFname)
 		break
 
-	case DiskBeelog: // same init procedure
-	case InmemBeelog:
-		// TODO: interpret config parameters for beelog ...
-		//cfg := configBeelog()
-		s.avl = bl.NewAVLTreeHT()
+	case Beelog:
+		var err error
+		config := configBeelog()
+		if !config.Inmem {
+			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
+		}
+		s.avl, err = bl.NewAVLTreeHTWithConfig(config)
+		if err != nil {
+			return err
+		}
 		break
 
 	case InmemTrad:
@@ -209,8 +222,6 @@ func (s *Store) Propose(msg []byte, svr *Server, clientIP string) error {
 // testGet returns the value for the given key, just using in unit tests since it results
 // in an inconsistence read operation, not following total ordering.
 func (s *Store) testGet(key string) string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return string(s.m[key])
 }
 
@@ -349,80 +360,63 @@ func (s *Store) ListenRaftJoins(ctx context.Context, addr string) {
 	}
 }
 
-// UnsafeStateRecover ...
-func (s *Store) UnsafeStateRecover(p, n uint64, activePipe net.Conn) error {
+// LogStateRecover ...
+func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
+	if n < p {
+		return fmt.Errorf("invalid interval request, 'n' must be >= 'p'")
+	}
+
 	var (
-		logs  []byte
-		err   error
-		rd    io.Reader
-		buff  *bytes.Buffer
-		cmds  []pb.Command
-		inmem bool
+		logs []byte
+		err  error
+		trad bool
+		cmds []pb.Command
 	)
 
 	switch s.Logging {
 	case NotLog:
 		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
 
-	case DiskTrad:
-		// persistent stored log, currently returns the entire log ignoring [p, n] interval
-		logFileName := *logfolder + "log-file-" + svrID + ".txt"
-		fd, _ := os.OpenFile(logFileName, os.O_RDONLY, 0644)
-		defer fd.Close()
-		rd = fd
-		break
-
-	case DiskBeelog:
-		// TODO: implement resilient recovery for beelog
-		break
-
-	case InmemBeelog:
-		cmds, err = bl.ApplyReduceAlgo(s.avl, beelogReduceAlg, p, n)
+	case Beelog:
+		logs, err = s.avl.RecovBytes(p, n)
 		if err != nil {
 			return err
 		}
-		inmem = true
+		break
+
+	case DiskTrad:
+		fd, _ := os.OpenFile(s.LogFname, os.O_RDONLY, 0644)
+		defer fd.Close()
+
+		cmds, err = bl.RetainLogIntervalWhileUnmarshaling(fd, p, n)
+		if err != nil {
+			return err
+		}
+		trad = true
 		break
 
 	case InmemTrad:
-		// local in-mem log
-		for _, c := range *s.inMemLog {
-			if c.Id >= p && c.Id <= n {
-				cmds = append(cmds, c)
-			}
-		}
-		inmem = true
+		s.mu.Lock()
+		cmds = bl.RetainLogInterval(s.inMemLog, p, n)
+		s.mu.Unlock()
+		trad = true
 		break
 
 	default:
 		return fmt.Errorf("unknow log strategy '%v' provided", s.Logging)
 	}
 
-	if inmem {
-		buff = bytes.NewBuffer(nil)
-		for _, c := range cmds {
-			raw, err := proto.Marshal(&c)
-			if err != nil {
-				return err
-			}
-
-			// writing size of each serialized message as streaming delimiter
-			err = binary.Write(buff, binary.BigEndian, int32(len(raw)))
-			if err != nil {
-				return err
-			}
-
-			_, err = buff.Write(raw)
-			if err != nil {
-				return err
-			}
+	if trad {
+		buff := bytes.NewBuffer(nil)
+		err = bl.MarshalLogIntoWriter(buff, &cmds, p, n)
+		if err != nil {
+			return err
 		}
-		rd = buff
-	}
 
-	logs, err = ioutil.ReadAll(rd)
-	if err != nil {
-		return err
+		logs, err = ioutil.ReadAll(buff)
+		if err != nil {
+			return err
+		}
 	}
 
 	signalError := make(chan error, 0)
@@ -465,7 +459,7 @@ func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 			firstIndex, _ := strconv.Atoi(data[1])
 			lastIndex, _ := strconv.Atoi(data[2])
 
-			err = s.UnsafeStateRecover(uint64(firstIndex), uint64(lastIndex), conn)
+			err = s.LogStateRecover(uint64(firstIndex), uint64(lastIndex), conn)
 			if err != nil {
 				log.Fatalf("failed to transfer log to node located at %s: %s", data[0], err.Error())
 			}
@@ -481,7 +475,7 @@ func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 func createFile(filename string) *os.File {
 	var flags int
 	if catastrophicFaults {
-		flags = os.O_SYNC | os.O_WRONLY
+		flags = os.O_WRONLY | os.O_SYNC
 	} else {
 		flags = os.O_WRONLY
 	}
@@ -493,6 +487,14 @@ func createFile(filename string) *os.File {
 		fd, _ = os.OpenFile(filename, os.O_CREATE|flags, 0644)
 	} else {
 		log.Fatalln("Could not create file", filename, ":", exists.Error())
+		return nil
+	}
+
+	// important for the first command log interpretation, and doesnt compromise
+	// throughput reading.
+	_, err := fmt.Fprintf(fd, "%d\n%d\n", 0, 0)
+	if err != nil {
+		log.Fatalln("Error during file creation:", err.Error())
 		return nil
 	}
 	return fd

@@ -3,7 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -36,36 +37,43 @@ func NewMockState() *MockState {
 }
 
 // InstallReceivedState ...
-func (m *MockState) InstallReceivedState(newState []byte) (int64, error) {
+func (m *MockState) InstallReceivedState(newState []byte) (uint64, error) {
+	rd := bytes.NewReader(newState)
+	var f, l uint64
 
-	reader := bytes.NewReader(newState)
-	commandsToApply := make([]pb.Command, 0)
+	_, err := fmt.Fscanf(rd, "%d\n%d\n", &f, &l)
+	if err != nil {
+		return 0, err
+	}
+	cmds := make([]pb.Command, 0, l-f)
+
 	for {
-
-		var commandLength int32
-		err := binary.Read(reader, binary.BigEndian, &commandLength)
-		if err != nil {
-			log.Println("Error encountered on size reading:", err.Error())
+		var cmdLen int32
+		err := binary.Read(rd, binary.BigEndian, &cmdLen)
+		if err == io.EOF {
 			break
+		} else if err != nil {
+			return 0, err
 		}
 
-		serializedCmd := make([]byte, commandLength)
-		_, err = reader.Read(serializedCmd)
-		if err != nil {
-			log.Println("Error encountered on buf reading.:", err.Error())
+		raw := make([]byte, cmdLen)
+		_, err = rd.Read(raw)
+		if err == io.EOF {
 			break
+		} else if err != nil {
+			return 0, err
 		}
 
-		command := &pb.Command{}
-		err = proto.Unmarshal(serializedCmd, command)
+		c := &pb.Command{}
+		err = proto.Unmarshal(raw, c)
 		if err != nil {
-			log.Println("Error encountered on cmd marsh reading.:", err.Error())
-			break
+			return 0, err
 		}
-		commandsToApply = append(commandsToApply, *command)
+		cmds = append(cmds, *c)
 	}
 
-	for _, cmd := range commandsToApply {
+	// apply received commands on mock state
+	for _, cmd := range cmds {
 		switch cmd.Op {
 		case pb.Command_SET:
 			m.state[cmd.Key] = []byte(cmd.Value)
@@ -74,7 +82,5 @@ func (m *MockState) InstallReceivedState(newState []byte) (int64, error) {
 			break
 		}
 	}
-
-	numOfCommands := int64(len(commandsToApply))
-	return numOfCommands, nil
+	return uint64(len(cmds)), nil
 }

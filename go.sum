@@ -11,8 +11,8 @@ github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbt
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/DataDog/datadog-go v2.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
-github.com/Lz-Gustavo/beelog v0.0.0-20200622173428-16342580943c h1:tcus/+OKwcRhalN3rT8hN++LHXBaPw8I0MbS9KpjH3w=
-github.com/Lz-Gustavo/beelog v0.0.0-20200622173428-16342580943c/go.mod h1:2caGYNskAV0tcOBJgOQG5KxC5d7YcwSk+NXHT8+PZ/0=
+github.com/Lz-Gustavo/beelog v0.0.0-20200624192034-5d8be99fac82 h1:O1So8WDDo/NLyoFYL6YZ7BRoN/7eBksVIMdJ+ZxORKo=
+github.com/Lz-Gustavo/beelog v0.0.0-20200624192034-5d8be99fac82/go.mod h1:2caGYNskAV0tcOBJgOQG5KxC5d7YcwSk+NXHT8+PZ/0=
 github.com/Lz-Gustavo/journey v0.0.0-20190813210404-2d5462d29d6f h1:kP9wdGdIzAXHwPJYgnDusXjQ8tpPswGDhQ0aVIpq7Fo=
 github.com/Lz-Gustavo/journey v0.0.0-20190813210404-2d5462d29d6f/go.mod h1:Ak4vsM4pAUhIaT5qs8pMgu/XESZnnbLn87CyvtdZKp0=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=

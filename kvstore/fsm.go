@@ -156,19 +156,27 @@ func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
 			return err
 		}
 
-		binary.Write(f.LogFile, binary.BigEndian, int32(len(rawCmd)))
-		f.LogFile.Write(rawCmd)
+		err = binary.Write(f.LogFile, binary.BigEndian, int32(len(rawCmd)))
+		if err != nil {
+			return err
+		}
+
+		_, err = f.LogFile.Write(rawCmd)
+		if err != nil {
+			return err
+		}
 		break
 
 	case InmemTrad:
+		f.mu.Lock()
 		if f.inMemLog == nil {
 			f.inMemLog = &[]pb.Command{}
 		}
 		*f.inMemLog = append(*f.inMemLog, *cmd)
+		f.mu.Unlock()
 		break
 
-	case DiskBeelog: // same log procedure
-	case InmemBeelog:
+	case Beelog:
 		err := f.avl.Log(ind, *cmd)
 		if err != nil {
 			return err
