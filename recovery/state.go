@@ -37,15 +37,14 @@ func NewMockState() *MockState {
 }
 
 // InstallReceivedState ...
-func (m *MockState) InstallReceivedState(newState []byte) (uint64, error) {
+func (m *MockState) InstallReceivedState(newState []byte, f, l *uint64) (uint64, error) {
 	rd := bytes.NewReader(newState)
-	var f, l uint64
 
-	_, err := fmt.Fscanf(rd, "%d\n%d\n", &f, &l)
+	_, err := fmt.Fscanf(rd, "%d\n%d\n", f, l)
 	if err != nil {
 		return 0, err
 	}
-	cmds := make([]pb.Command, 0, l-f)
+	cmds := make([]pb.Command, 0, *l-*f)
 
 	for {
 		var cmdLen int32

@@ -33,7 +33,7 @@ func NewServer(ctx context.Context, s *Store) *Server {
 		kvstore:  s,
 		t:        time.NewTimer(time.Second),
 	}
-	svr.throughput = createFile(svrID + "-throughput.out")
+	svr.throughput = createWriteFile(svrID+"-throughput.out", os.O_TRUNC)
 
 	go svr.Listen(ctx)
 	go svr.monitor(ctx)

@@ -33,11 +33,9 @@ func init() {
 
 func main() {
 	flag.Parse()
-
-	//validIP := net.ParseIP(recovAddr) != nil
 	validIP := recovAddr != ""
 	if !validIP {
-		log.Fatalln("Must set a valid IP address to request state, run with: ./recovery -recov 'ipAddress'")
+		log.Fatalln("must set a valid IP address to request state, run with: ./recovery -recov 'ipAddress'")
 	}
 
 	recovReplica := NewMockState()
@@ -45,14 +43,14 @@ func main() {
 	// Wait for the application to log a sequence of commands
 	time.Sleep(time.Duration(sleepDuration) * time.Second)
 
-	receivedState, stateTransferTime := AskForStateTransfer(firstIndex, lastIndex)
+	fmt.Printf("Asking for interval: [%d, %d]\n", firstIndex, lastIndex)
+	recvState, dur := AskForStateTransfer(firstIndex, lastIndex)
+	numCommands, stateInstallTime := StartStateInstallation(recovReplica, recvState)
 
-	numCommands, stateInstallTime := StartStateInstallation(recovReplica, receivedState)
-
-	fmt.Println("Transfer Time (ns):", stateTransferTime)
-	fmt.Println("Install Time (ns):", stateInstallTime)
-	fmt.Println("State Size (bytes):", len(receivedState))
-	fmt.Println("Num of Commands:", numCommands)
+	fmt.Println("Transfer time (ns):", dur)
+	fmt.Println("Install time (ns):", stateInstallTime)
+	fmt.Println("State size (bytes):", len(recvState))
+	fmt.Println("Num of commands:", numCommands)
 }
 
 // AskForStateTransfer ...
@@ -63,7 +61,7 @@ func AskForStateTransfer(p, n uint64) ([]byte, uint64) {
 	start := time.Now()
 	recvState, err := sendStateRequest(f, l)
 	if err != nil {
-		log.Fatalf("Failed to receive a new state from node %s: %s", recovAddr, err.Error())
+		log.Fatalf("failed to receive a new state from node '%s', error: %s", recovAddr, err.Error())
 	}
 	finish := uint64(time.Since(start) / time.Nanosecond)
 	return recvState, finish
@@ -71,31 +69,36 @@ func AskForStateTransfer(p, n uint64) ([]byte, uint64) {
 
 // StartStateInstallation ...
 func StartStateInstallation(replica *MockState, recvState []byte) (numCmds, duration uint64) {
+	// In order to identify the received interval without a stdout during timing
+	var p, n uint64
 	start := time.Now()
-	cmds, err := replica.InstallReceivedState(recvState)
+
+	cmds, err := replica.InstallReceivedState(recvState, &p, &n)
 	if err != nil {
-		log.Fatalf("Failed to install the received state: %s", err.Error())
+		log.Fatalf("failed to install the received state: %s", err.Error())
 	}
 	finish := uint64(time.Since(start) / time.Nanosecond)
+
+	fmt.Printf("Received interval: [%d, %d]\n", p, n)
 	return cmds, finish
 }
 
 func sendStateRequest(first, last string) ([]byte, error) {
 	stateConn, err := net.Dial("tcp", recovAddr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to node at %s: %s", recovAddr, err.Error())
+		return nil, fmt.Errorf("failed to connect to node at '%s', error: %s", recovAddr, err.Error())
 	}
 
 	reqMsg := stateConn.LocalAddr().String() + "-" + first + "-" + last + "\n"
 	_, err = fmt.Fprint(stateConn, reqMsg)
 	if err != nil {
-		return nil, fmt.Errorf("Failed sending state request to node at %s: %s", recovAddr, err.Error())
+		return nil, fmt.Errorf("failed sending state request to node at '%s', error: %s", recovAddr, err.Error())
 	}
 
 	var recv []byte
 	recv, err = ioutil.ReadAll(stateConn)
 	if err != nil {
-		log.Fatalln("Could not read state response:", err.Error())
+		log.Fatalln("could not read state response:", err.Error())
 	}
 
 	if err = stateConn.Close(); err != nil {

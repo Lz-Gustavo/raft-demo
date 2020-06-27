@@ -164,7 +164,7 @@ func (s *Store) initLogConfig() error {
 	switch s.Logging {
 	case DiskTrad:
 		s.LogFname = *logfolder + "log-file-" + svrID + ".log"
-		s.LogFile = createFile(s.LogFname)
+		s.LogFile = createWriteFile(s.LogFname)
 		break
 
 	case Beelog:
@@ -181,6 +181,9 @@ func (s *Store) initLogConfig() error {
 
 	case InmemTrad:
 		s.inMemLog = &[]pb.Command{}
+		break
+
+	case NotLog: // avoid error
 		break
 
 	default:
@@ -388,10 +391,11 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 		fd, _ := os.OpenFile(s.LogFname, os.O_RDONLY, 0644)
 		defer fd.Close()
 
-		cmds, err = bl.RetainLogIntervalWhileUnmarshaling(fd, p, n)
+		data, err := bl.UnmarshalLogFromReader(fd)
 		if err != nil {
 			return err
 		}
+		cmds = bl.RetainLogInterval(&data, p, n)
 		trad = true
 		break
 
@@ -408,6 +412,8 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 
 	if trad {
 		buff := bytes.NewBuffer(nil)
+		// TODO: Must inform the correct indexes retrieved from the current state. Not
+		// always will be equal [p, n] (could be shorter)
 		err = bl.MarshalLogIntoWriter(buff, &cmds, p, n)
 		if err != nil {
 			return err
@@ -434,7 +440,7 @@ func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
+		log.Fatalf("failed to bind connection at '%s', error: %s", addr, err.Error())
 	}
 
 	for {
@@ -461,23 +467,27 @@ func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
 
 			err = s.LogStateRecover(uint64(firstIndex), uint64(lastIndex), conn)
 			if err != nil {
-				log.Fatalf("failed to transfer log to node located at %s: %s", data[0], err.Error())
+				log.Fatalf("failed to transfer log to node located at '%s', error: %s", data[0], err.Error())
 			}
 
 			err = conn.Close()
 			if err != nil {
-				log.Fatalf("Error encountered on connection close: %s", err.Error())
+				log.Fatalf("error encountered on connection close: %s", err.Error())
 			}
 		}
 	}
 }
 
-func createFile(filename string) *os.File {
+func createWriteFile(filename string, extraFlags ...int) *os.File {
 	var flags int
 	if catastrophicFaults {
 		flags = os.O_WRONLY | os.O_SYNC
 	} else {
 		flags = os.O_WRONLY
+	}
+
+	for _, f := range extraFlags {
+		flags = flags | f
 	}
 
 	var fd *os.File
