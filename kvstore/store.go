@@ -36,8 +36,11 @@ const (
 	// InmemTrad ...
 	InmemTrad
 
-	// Beelog ... configured by configBeelog() ...
-	Beelog
+	// BeelogAVL ... configured by configBeelog() ...
+	BeelogAVL
+
+	// BeelogList ...
+	BeelogList
 )
 
 const (
@@ -56,12 +59,11 @@ const (
 	catastrophicFaults = false
 
 	// defaultLogStrategy is overwritten to 'DiskTrad' if '-logfolder' flag is provided.
-	defaultLogStrategy = Beelog
+	defaultLogStrategy, beelogReduceAlg = BeelogList, bl.GreedyLt
 
 	// beelog configuration, ignored if 'defaultLogStrategy' isnt 'Beelog'
-	beelogReduceAlg = bl.IterDFSAvl
-	beelogTick      = bl.Delayed
-	beelogInmem     = false
+	beelogTick  = bl.Delayed
+	beelogInmem = false
 )
 
 var (
@@ -102,8 +104,9 @@ type Store struct {
 	Logging  LogStrategy
 	LogFile  *os.File
 	LogFname string
-	avl      *bl.AVLTreeHT
+	logCount uint64
 
+	st       bl.Structure
 	inMemLog *[]pb.Command
 	mu       sync.Mutex
 }
@@ -167,13 +170,25 @@ func (s *Store) initLogConfig() error {
 		s.LogFile = createWriteFile(s.LogFname)
 		break
 
-	case Beelog:
+	case BeelogAVL:
 		var err error
 		config := configBeelog()
 		if !config.Inmem {
 			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
 		}
-		s.avl, err = bl.NewAVLTreeHTWithConfig(config)
+		s.st, err = bl.NewAVLTreeHTWithConfig(config)
+		if err != nil {
+			return err
+		}
+		break
+
+	case BeelogList:
+		var err error
+		config := configBeelog()
+		if !config.Inmem {
+			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
+		}
+		s.st, err = bl.NewListHTWithConfig(config)
 		if err != nil {
 			return err
 		}
@@ -380,8 +395,8 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 	case NotLog:
 		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
 
-	case Beelog:
-		logs, err = s.avl.RecovBytes(p, n)
+	case BeelogList, BeelogAVL:
+		logs, err = s.st.RecovBytes(p, n)
 		if err != nil {
 			return err
 		}
@@ -414,7 +429,7 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 		buff := bytes.NewBuffer(nil)
 		// TODO: Must inform the correct indexes retrieved from the current state. Not
 		// always will be equal [p, n] (could be shorter)
-		err = bl.MarshalLogIntoWriter(buff, &cmds, p, n)
+		err = bl.MarshalLogIntoWriter(buff, &cmds, 0, s.logCount)
 		if err != nil {
 			return err
 		}

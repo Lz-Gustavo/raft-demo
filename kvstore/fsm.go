@@ -165,6 +165,7 @@ func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
 		if err != nil {
 			return err
 		}
+		f.logCount++
 		break
 
 	case InmemTrad:
@@ -174,10 +175,11 @@ func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
 		}
 		*f.inMemLog = append(*f.inMemLog, *cmd)
 		f.mu.Unlock()
+		f.logCount++
 		break
 
-	case Beelog:
-		err := f.avl.Log(ind, *cmd)
+	case BeelogList, BeelogAVL:
+		err := f.st.Log(ind, *cmd)
 		if err != nil {
 			return err
 		}
