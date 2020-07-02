@@ -410,13 +410,15 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 		if err != nil {
 			return err
 		}
-		cmds = bl.RetainLogInterval(&data, p, n)
+		//cmds = bl.RetainLogInterval(&data, p, n)
+		cmds = data
 		trad = true
 		break
 
 	case InmemTrad:
 		s.mu.Lock()
-		cmds = bl.RetainLogInterval(s.inMemLog, p, n)
+		//cmds = bl.RetainLogInterval(s.inMemLog, p, n)
+		copy(cmds, *s.inMemLog)
 		s.mu.Unlock()
 		trad = true
 		break
