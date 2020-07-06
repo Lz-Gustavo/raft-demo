@@ -36,11 +36,14 @@ const (
 	// InmemTrad ...
 	InmemTrad
 
-	// BeelogAVL ... configured by configBeelog() ...
-	BeelogAVL
-
 	// BeelogList ...
 	BeelogList
+
+	// BeelogArray ...
+	BeelogArray
+
+	// BeelogAVL ...
+	BeelogAVL
 )
 
 const (
@@ -59,7 +62,7 @@ const (
 	catastrophicFaults = false
 
 	// defaultLogStrategy is overwritten to 'DiskTrad' if '-logfolder' flag is provided.
-	defaultLogStrategy, beelogReduceAlg = BeelogList, bl.GreedyLt
+	defaultLogStrategy, beelogReduceAlg = BeelogArray, bl.GreedyArray
 
 	// beelog configuration, ignored if 'defaultLogStrategy' isnt 'Beelog'
 	beelogTick  = bl.Delayed
@@ -189,6 +192,18 @@ func (s *Store) initLogConfig() error {
 			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
 		}
 		s.st, err = bl.NewListHTWithConfig(config)
+		if err != nil {
+			return err
+		}
+		break
+
+	case BeelogArray:
+		var err error
+		config := configBeelog()
+		if !config.Inmem {
+			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
+		}
+		s.st, err = bl.NewArrayHTWithConfig(config)
 		if err != nil {
 			return err
 		}
@@ -395,7 +410,7 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 	case NotLog:
 		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
 
-	case BeelogList, BeelogAVL:
+	case BeelogList, BeelogArray, BeelogAVL:
 		logs, err = s.st.RecovBytes(p, n)
 		if err != nil {
 			return err
@@ -410,15 +425,13 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 		if err != nil {
 			return err
 		}
-		//cmds = bl.RetainLogInterval(&data, p, n)
-		cmds = data
+		cmds = bl.RetainLogInterval(&data, p, n)
 		trad = true
 		break
 
 	case InmemTrad:
 		s.mu.Lock()
-		//cmds = bl.RetainLogInterval(s.inMemLog, p, n)
-		copy(cmds, *s.inMemLog)
+		cmds = bl.RetainLogInterval(s.inMemLog, p, n)
 		s.mu.Unlock()
 		trad = true
 		break
@@ -429,9 +442,11 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 
 	if trad {
 		buff := bytes.NewBuffer(nil)
-		// TODO: Must inform the correct indexes retrieved from the current state. Not
-		// always will be equal [p, n] (could be shorter)
-		err = bl.MarshalLogIntoWriter(buff, &cmds, 0, s.logCount)
+
+		// Informing the correct indexes retrieved from the current state. Still
+		// in doubt if logs must be retained or not from traditional approaches.
+		// If not, must inform '0' and 's.logCount' as retrived indexes.
+		err = bl.MarshalLogIntoWriter(buff, &cmds, p, n)
 		if err != nil {
 			return err
 		}
