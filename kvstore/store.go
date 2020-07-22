@@ -44,6 +44,12 @@ const (
 
 	// BeelogAVL ...
 	BeelogAVL
+
+	// BeelogCircBuffer ...
+	BeelogCircBuffer
+
+	// BeelogConcTable ...
+	BeelogConcTable
 )
 
 const (
@@ -62,11 +68,12 @@ const (
 	catastrophicFaults = false
 
 	// defaultLogStrategy is overwritten to 'DiskTrad' if '-logfolder' flag is provided.
-	defaultLogStrategy, beelogReduceAlg = BeelogArray, bl.GreedyArray
+	defaultLogStrategy = BeelogConcTable
 
-	// beelog configuration, ignored if 'defaultLogStrategy' isnt 'Beelog'
-	beelogTick  = bl.Delayed
-	beelogInmem = false
+	// beelog configuration, ignored if 'defaultLogStrategy' isnt 'Beelog*'
+	beelogTick   = bl.Interval
+	beelogInmem  = false
+	beelogPeriod = 4000 // ignored if not Interval on 'beelogTick'
 )
 
 var (
@@ -84,10 +91,32 @@ func configRaft() *raft.Config {
 
 // Custom config over default set by const definitions
 func configBeelog() *bl.LogConfig {
+	var alg bl.Reducer
+
+	// just some defaults configuration, a real application would opt for a single
+	// structure on the first way.
+	switch defaultLogStrategy {
+	case BeelogList:
+		alg = bl.GreedyLt
+	case BeelogArray:
+		alg = bl.GreedyArray
+	case BeelogAVL:
+		alg = bl.IterDFSAvl
+	case BeelogCircBuffer:
+		alg = bl.IterCircBuff
+	case BeelogConcTable:
+		alg = bl.IterConcTable
+
+	default:
+		log.Fatalln("unsupported log strategy for beelog config.")
+	}
+
 	return &bl.LogConfig{
-		Alg:   beelogReduceAlg,
-		Tick:  beelogTick,
-		Inmem: beelogInmem,
+		Alg:    alg,
+		Tick:   beelogTick,
+		Inmem:  beelogInmem,
+		Period: beelogPeriod,
+		Fname:  "/tmp/beelog-state-" + svrID + ".log", // ignored if inmem
 	}
 }
 
@@ -126,7 +155,7 @@ func New(ctx context.Context, inMem bool) *Store {
 			Output: os.Stderr,
 		}),
 	}
-	err := s.initLogConfig()
+	err := s.initLogConfig(ctx)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -161,12 +190,13 @@ func New(ctx context.Context, inMem bool) *Store {
 	return s
 }
 
-func (s *Store) initLogConfig() error {
+func (s *Store) initLogConfig(ctx context.Context) error {
 	s.Logging = defaultLogStrategy
 	if *logfolder != "" {
 		s.Logging = DiskTrad
 	}
 
+	var err error
 	switch s.Logging {
 	case DiskTrad:
 		s.LogFname = *logfolder + "log-file-" + svrID + ".log"
@@ -174,11 +204,7 @@ func (s *Store) initLogConfig() error {
 		break
 
 	case BeelogAVL:
-		var err error
 		config := configBeelog()
-		if !config.Inmem {
-			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
-		}
 		s.st, err = bl.NewAVLTreeHTWithConfig(config)
 		if err != nil {
 			return err
@@ -186,11 +212,7 @@ func (s *Store) initLogConfig() error {
 		break
 
 	case BeelogList:
-		var err error
 		config := configBeelog()
-		if !config.Inmem {
-			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
-		}
 		s.st, err = bl.NewListHTWithConfig(config)
 		if err != nil {
 			return err
@@ -198,12 +220,24 @@ func (s *Store) initLogConfig() error {
 		break
 
 	case BeelogArray:
-		var err error
 		config := configBeelog()
-		if !config.Inmem {
-			config.Fname = "/tmp/beelog-state-" + svrID + ".log"
-		}
 		s.st, err = bl.NewArrayHTWithConfig(config)
+		if err != nil {
+			return err
+		}
+		break
+
+	case BeelogCircBuffer:
+		config := configBeelog()
+		s.st, err = bl.NewCircBuffHTWithConfig(ctx, config, 4000)
+		if err != nil {
+			return err
+		}
+		break
+
+	case BeelogConcTable:
+		config := configBeelog()
+		s.st, err = bl.NewConcTableWithConfig(ctx, config)
 		if err != nil {
 			return err
 		}
@@ -410,7 +444,7 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 	case NotLog:
 		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
 
-	case BeelogList, BeelogArray, BeelogAVL:
+	case BeelogList, BeelogArray, BeelogAVL, BeelogCircBuffer, BeelogConcTable:
 		logs, err = s.st.RecovBytes(p, n)
 		if err != nil {
 			return err

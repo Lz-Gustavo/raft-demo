@@ -16,22 +16,25 @@ import (
 	"github.com/Lz-Gustavo/beelog/pb"
 )
 
-var (
-	dataChoice int
-	oneTweet   = strings.Repeat("@", 128)  // dataChoice == 0
-	oneKB      = strings.Repeat("@", 1024) // dataChoice == 1
-	fourKB     = strings.Repeat("@", 4096) // dataChoice == 2
-)
-
-// Value to be store on the hashmap.
-var storeValue string
-
 const (
 	// One client has a '1/measureChance' chance to capture latency of it's next requisition.
-	measureChance int = 100
+	measureChance int = 30
 
 	// Just the 'watcherIndex'th client will be recording latency based on 'measureChance'.
 	watcherIndex int = 0
+)
+
+var (
+	dataChoice int
+	oneTweet   = strings.Repeat("@", 128)  // dataChoice 0
+	oneKB      = strings.Repeat("@", 1024) // dataChoice 1
+	fourKB     = strings.Repeat("@", 4096) // dataChoice 2
+
+	// Value to be store on the hashmap.
+	storeValue string
+
+	// global referenced config
+	Cfg *config
 )
 
 type config struct {
@@ -41,8 +44,6 @@ type config struct {
 	numMessages int
 	execTime    int64
 }
-
-var Cfg *config
 
 func init() {
 	Cfg = new(config)

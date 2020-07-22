@@ -72,11 +72,17 @@ func init() {
 		log.Fatalln("Must set a server ID, run with: ./server -id 'svrID'")
 	}
 
-	fmt.Println("ID:", svrID)
-	fmt.Println("app:", svrPort)
-	fmt.Println("raft:", raftAddr)
-	fmt.Println("join:", joinAddr)
-	fmt.Println("hjoin:", joinHandlerAddr)
+	fmt.Println(
+		"=========================",
+		"\n=== Running with config:",
+		"\nID:    ", svrID,
+		"\napp:   ", svrPort,
+		"\nraft:  ", raftAddr,
+		"\njoin:  ", joinAddr,
+		"\nhjoin: ", joinHandlerAddr,
+		"\nhrecov:", recovHandlerAddr,
+		"\n=========================",
+	)
 }
 
 func main() {
