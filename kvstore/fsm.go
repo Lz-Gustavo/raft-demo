@@ -179,7 +179,7 @@ func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
 		break
 
 	case BeelogList, BeelogArray, BeelogAVL, BeelogCircBuffer, BeelogConcTable:
-		err := f.st.Log(ind, *cmd)
+		err := f.st.Log(*cmd)
 		if err != nil {
 			return err
 		}

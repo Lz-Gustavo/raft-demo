@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/BurntSushi/toml v0.3.1
-	github.com/Lz-Gustavo/beelog v0.0.0-20200722142821-fc22b6cd6e6b
+	github.com/Lz-Gustavo/beelog v0.0.0-20200723121119-f43dfcb71a84
 	github.com/Lz-Gustavo/journey v0.0.0-20190813210404-2d5462d29d6f
 	github.com/golang/protobuf v1.4.2
 	github.com/hashicorp/go-hclog v0.14.1
