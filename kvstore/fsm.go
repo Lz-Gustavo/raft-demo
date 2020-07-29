@@ -20,7 +20,6 @@ type fsm Store
 
 // Apply applies a Raft log entry to the key-value store.
 func (f *fsm) Apply(l *raft.Log) interface{} {
-
 	cmd := &pb.Command{}
 	err := proto.Unmarshal(l.Data, cmd)
 	if err != nil {
@@ -145,12 +144,12 @@ func (f *fsmSnapshot) Release() {}
 // LogCommand logs the received command on the choosen index following the configured
 // log strategy.
 func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
-	cmd.Id = ind
 	switch st {
 	case NotLog:
 		return nil
 
 	case DiskTrad:
+		cmd.Id = ind
 		rawCmd, err := proto.Marshal(cmd)
 		if err != nil {
 			return err
@@ -169,6 +168,7 @@ func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
 		break
 
 	case InmemTrad:
+		cmd.Id = ind
 		f.mu.Lock()
 		if f.inMemLog == nil {
 			f.inMemLog = &[]pb.Command{}
@@ -179,6 +179,7 @@ func (f *fsm) LogCommand(ind uint64, cmd *pb.Command, st LogStrategy) error {
 		break
 
 	case BeelogList, BeelogArray, BeelogAVL, BeelogCircBuffer, BeelogConcTable:
+		cmd.Id = ind
 		err := f.st.Log(*cmd)
 		if err != nil {
 			return err

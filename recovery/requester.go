@@ -22,6 +22,7 @@ var (
 	sleepDuration         int
 	recovAddr             string
 	firstIndex, lastIndex string
+	multipleLogs          bool
 )
 
 func init() {
@@ -29,6 +30,7 @@ func init() {
 	flag.StringVar(&recovAddr, "recov", ":14000", "set an address to request state, defaults to localhost:14000")
 	flag.StringVar(&firstIndex, "p", "", "set the first index of requested state")
 	flag.StringVar(&lastIndex, "n", "", "set the last index of requested state")
+	flag.BoolVar(&multipleLogs, "mult", false, "inform wheter multiple logs will be returned")
 }
 
 func main() {
@@ -37,24 +39,29 @@ func main() {
 	if !validIP {
 		log.Fatalln("must set a valid IP address to request state, run with: ./recovery -recov 'ipAddress'")
 	}
+	if multipleLogs {
+		fmt.Println("Expecting multiple logs...")
+	}
 
 	if err := validInterval(firstIndex, lastIndex); err != nil {
 		log.Fatalln(err.Error(), "must set a valid interval, run with: ./recovery -p 'num' -n 'num'")
 	}
-
 	recovReplica := NewMockState()
 
 	// Wait for the application to log a sequence of commands
 	time.Sleep(time.Duration(sleepDuration) * time.Second)
 
 	fmt.Printf("Asking for interval: [%s, %s]\n", firstIndex, lastIndex)
-	recvState, dur := AskForStateTransfer(firstIndex, lastIndex)
-	numCommands, stateInstallTime := StartStateInstallation(recovReplica, recvState)
+	state, dur := AskForStateTransfer(firstIndex, lastIndex)
+	num, installDur := MeasureStateInstallation(recovReplica, state)
 
-	fmt.Println("Transfer time (ns):", dur)
-	fmt.Println("Install time (ns):", stateInstallTime)
-	fmt.Println("State size (bytes):", len(recvState))
-	fmt.Println("Num of commands:", numCommands)
+	fmt.Println(
+		"=========================",
+		"\nTransfer time (ns):", dur,
+		"\nInstall time (ns): ", installDur,
+		"\nNum of commands:   ", num,
+		"\nState size (bytes):", len(state),
+	)
 }
 
 // AskForStateTransfer ...
@@ -68,18 +75,30 @@ func AskForStateTransfer(p, n string) ([]byte, uint64) {
 	return recvState, finish
 }
 
-// StartStateInstallation ...
-func StartStateInstallation(replica *MockState, recvState []byte) (numCmds, duration uint64) {
+// MeasureStateInstallation ...
+func MeasureStateInstallation(replica *MockState, recvState []byte) (numCmds, duration uint64) {
 	// In order to identify the received interval without a stdout during timing
-	var p, n uint64
-	start := time.Now()
+	var (
+		p, n, cmds uint64
+		err        error
+	)
 
-	cmds, err := replica.InstallReceivedState(recvState, &p, &n)
-	if err != nil {
-		log.Fatalf("failed to install the received state: %s", err.Error())
+	start := time.Now()
+	if multipleLogs {
+		cmds, err = replica.InstallRecovStateForMultipleLogs(recvState, &p, &n)
+		if err != nil {
+			log.Fatalf("failed to install the received state: %s", err.Error())
+		}
+
+	} else {
+		cmds, err = replica.InstallRecovState(recvState, &p, &n)
+		if err != nil {
+			log.Fatalf("failed to install the received state: %s", err.Error())
+		}
 	}
 	finish := uint64(time.Since(start) / time.Nanosecond)
 
+	// prints only the last retrieved interval on multiple logs.
 	fmt.Printf("Received interval: [%d, %d]\n", p, n)
 	return cmds, finish
 }

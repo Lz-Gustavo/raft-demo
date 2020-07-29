@@ -112,11 +112,12 @@ func configBeelog() *bl.LogConfig {
 	}
 
 	return &bl.LogConfig{
-		Alg:    alg,
-		Tick:   beelogTick,
-		Inmem:  beelogInmem,
-		Period: beelogPeriod,
-		Fname:  "/tmp/beelog-state-" + svrID + ".log", // ignored if inmem
+		Alg:     alg,
+		Tick:    beelogTick,
+		Inmem:   beelogInmem,
+		Period:  beelogPeriod,
+		KeepAll: defaultLogStrategy == BeelogConcTable,
+		Fname:   "/tmp/beelog-state-" + svrID + ".log", // ignored if inmem
 	}
 }
 
@@ -198,6 +199,13 @@ func (s *Store) initLogConfig(ctx context.Context) error {
 
 	var err error
 	switch s.Logging {
+	case NotLog: // avoid error
+		return nil
+
+	case InmemTrad:
+		s.inMemLog = &[]pb.Command{}
+		break
+
 	case DiskTrad:
 		s.LogFname = *logfolder + "log-file-" + svrID + ".log"
 		s.LogFile = createWriteFile(s.LogFname)
@@ -243,13 +251,6 @@ func (s *Store) initLogConfig(ctx context.Context) error {
 		}
 		break
 
-	case InmemTrad:
-		s.inMemLog = &[]pb.Command{}
-		break
-
-	case NotLog: // avoid error
-		break
-
 	default:
 		return fmt.Errorf("unknow log strategy '%v' provided", s.Logging)
 	}
@@ -261,7 +262,6 @@ func (s *Store) initLogConfig(ctx context.Context) error {
 // "Get" requisitions to prevent inconsistent reads (that do not follow total ordering). etcd's
 // issue #741 gives a good explanation about this problem.
 func (s *Store) Propose(msg []byte, svr *Server, clientIP string) error {
-
 	if s.raft.State() != raft.Leader {
 		return nil
 	}
@@ -345,7 +345,6 @@ func (s *Store) StartRaft(enableSingle bool, localID string, localRaftAddr strin
 
 // JoinRaft joins a raft node, identified by nodeID and located at addr
 func (s *Store) JoinRaft(nodeID, addr string, voter bool) error {
-
 	s.logger.Debug(fmt.Sprintf("received join request for remote node %s at %s", nodeID, addr))
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
@@ -393,7 +392,6 @@ func (s *Store) JoinRaft(nodeID, addr string, voter bool) error {
 // when "-hjoin" flag is specified, and it can be set only in the first node in case you
 // have a static/imutable cluster architecture
 func (s *Store) ListenRaftJoins(ctx context.Context, addr string) {
-
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to bind connection at %s: %s", addr, err.Error())
@@ -432,20 +430,27 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 	if n < p {
 		return fmt.Errorf("invalid interval request, 'n' must be >= 'p'")
 	}
-
 	var (
-		logs []byte
-		err  error
-		trad bool
-		cmds []pb.Command
+		logs  []byte
+		nLogs int
+		err   error
+		trad  bool
+		cmds  []pb.Command
 	)
 
 	switch s.Logging {
 	case NotLog:
 		return fmt.Errorf("cannot retrieve application-level log from a non-logged application")
 
-	case BeelogList, BeelogArray, BeelogAVL, BeelogCircBuffer, BeelogConcTable:
+	case BeelogList, BeelogArray, BeelogAVL, BeelogCircBuffer:
 		logs, err = s.st.RecovBytes(p, n)
+		if err != nil {
+			return err
+		}
+		break
+
+	case BeelogConcTable: // current only one that retrieves entire state since origin
+		logs, nLogs, err = s.st.(*bl.ConcTable).RecovEntireLog()
 		if err != nil {
 			return err
 		}
@@ -474,6 +479,7 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 		return fmt.Errorf("unknow log strategy '%v' provided", s.Logging)
 	}
 
+	// TODO: fix recov procedure on disktrad config for the new log format
 	if trad {
 		buff := bytes.NewBuffer(nil)
 
@@ -491,19 +497,19 @@ func (s *Store) LogStateRecover(p, n uint64, activePipe net.Conn) error {
 		}
 	}
 
-	signalError := make(chan error, 0)
-	go func(dataToSend []byte, pipe net.Conn, signal chan<- error) {
-
-		_, err := pipe.Write(dataToSend)
-		signal <- err
-
-	}(logs, activePipe, signalError)
-	return <-signalError
+	// write num of commands if multiple logs
+	if nLogs > 0 {
+		_, err := fmt.Fprintf(activePipe, "%d\n", nLogs)
+		if err != nil {
+			return err
+		}
+	}
+	_, err = activePipe.Write(logs)
+	return err
 }
 
 // ListenStateTransfer ...
 func (s *Store) ListenStateTransfer(ctx context.Context, addr string) {
-
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to bind connection at '%s', error: %s", addr, err.Error())
@@ -568,7 +574,7 @@ func createWriteFile(filename string, extraFlags ...int) *os.File {
 
 	// important for the first command log interpretation, and doesnt compromise
 	// throughput reading.
-	_, err := fmt.Fprintf(fd, "%d\n%d\n", 0, 0)
+	_, err := fmt.Fprintf(fd, "%d\n%d\n%d\n", 0, 0, 0)
 	if err != nil {
 		log.Fatalln("Error during file creation:", err.Error())
 		return nil
